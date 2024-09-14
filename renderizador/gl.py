@@ -137,9 +137,6 @@ class GL:
 
         if len(vertices) < 5:
             print("ERROR NO TRIANGLES SENT")
-
-        print("vertices")
-        print(len(vertices))
         
 
 
@@ -367,7 +364,6 @@ class GL:
 
         vertices = []
         i = 0
-
         while i < len(index) - 2:
             if index[i] == -1 or index[i + 1] == -1 or index[i + 2] == -1:
                 i += 1 # pulando indices -1
@@ -412,65 +408,47 @@ class GL:
         colors,
         current_texture,
     ):
-            # A função indexedFaceSet é usada para desenhar malhas de triângulos. Ela funciona de
-        # forma muito simular a IndexedTriangleStripSet porém com mais recursos.
-        # Você receberá as coordenadas dos pontos no parâmetro cord, esses
-        # pontos são uma lista de pontos x, y, e z sempre na ordem. Assim coord[0] é o valor
-        # da coordenada x do primeiro ponto, coord[1] o valor y do primeiro ponto, coord[2]
-        # o valor z da coordenada z do primeiro ponto. Já coord[3] é a coordenada x do
-        # segundo ponto e assim por diante. No IndexedFaceSet uma lista de vértices é informada
-        # em coordIndex, o valor -1 indica que a lista acabou.
-        # A ordem de conexão será de 3 em 3 pulando um índice. Por exemplo: o
-        # primeiro triângulo será com os vértices 0, 1 e 2, depois serão os vértices 1, 2 e 3,
-        # depois 2, 3 e 4, e assim por diante.
-        # Adicionalmente essa implementação do IndexedFace aceita cores por vértices, assim
-        # se a flag colorPerVertex estiver habilitada, os vértices também possuirão cores
-        # que servem para definir a cor interna dos poligonos, para isso faça um cálculo
-        # baricêntrico de que cor deverá ter aquela posição. Da mesma forma se pode definir uma
-        # textura para o poligono, para isso, use as coordenadas de textura e depois aplique a
-        # cor da textura conforme a posição do mapeamento. Dentro da classe GPU já está
-        # implementadado um método para a leitura de imagens.
+        """Função usada para renderizar IndexedFaceSet com cores e texturas."""
 
-        def appendVertices(points, vertices, index):
-            coord_idx = index * 3
-            for u in range(3):
-                vertices.append(points[coord_idx + u])
+        def splitFaces(indices):
+            faces = [] 
+            vertices = [] 
+            for i in indices:
+                if i == -1:
+                    if vertices:
+                        faces.append(vertices)
+                    vertices = []
+                else:
+                    vertices.append(i)
+            return faces
 
-        vertices = []
-        vertex_colors = []
-        vertex_tex_coords = []
+        def generateStrips(faces):
+            strips = []
+            for face in faces:
+                if len(face) < 3:
+                    continue  # Ignore invalid faces
+
+                # Convert face into triangle strips
+                for i in range(1, len(face) - 1):
+                    strip = [face[0], face[i], face[i + 1], -1]
+                    strips.extend(strip)
+
+            return strips
+
+        # Split the input coordIndex into faces
+        faces = splitFaces(coordIndex)
+        
+        # Generate triangle strips from the faces
+        stripIndices = generateStrips(faces)
+        
+        # Output the generated strips
+        print("Generated triangle strips:", stripIndices)
+
+        # Render the triangle strips
+        GL.indexedTriangleStripSet(coord, stripIndices, colors)
 
 
-        texture = []
-        print("PASSOU")
-        if current_texture:
-            texture = gpu.GPU.load_texture(current_texture[0])
-            GL.texture = texture
 
-        for i in range(len(coordIndex)):
-            if coordIndex[i] == -1:
-                if len(vertices) >= 9:
-                    GL.vertex_colors = vertex_colors
-                    GL.vertex_tex_coord = vertex_tex_coords
-                    GL.triangleSet(vertices, colors)
-                vertices = []
-                vertex_colors = []
-                vertex_tex_coords = []
-            else:
-                appendVertices(coord, vertices, coordIndex[i])
-
-                if colorPerVertex and color and colorIndex:
-                    vertex_color_idx = colorIndex[i] * 3
-                    vertex_color = color[vertex_color_idx : vertex_color_idx + 3]
-                    vertex_colors.append(vertex_color)
-
-                if texCoord and texCoordIndex:
-                    tex_coord_idx = texCoordIndex[i] * 2
-                    tex_u, tex_v = texCoord[tex_coord_idx], texCoord[tex_coord_idx + 1]
-                    vertex_tex_coords.append([tex_u, tex_v])
-
-        if len(vertices) >= 9:
-            GL.triangleSet(vertices, colors, vertex_colors, vertex_tex_coords, texture)
 
 
 
