@@ -426,25 +426,17 @@ class GL:
             strips = []
             for face in faces:
                 if len(face) < 3:
-                    continue  # Ignore invalid faces
-
-                # Convert face into triangle strips
+                    continue 
+                
                 for i in range(1, len(face) - 1):
                     strip = [face[0], face[i], face[i + 1], -1]
                     strips.extend(strip)
 
             return strips
 
-        # Split the input coordIndex into faces
         faces = splitFaces(coordIndex)
-        
-        # Generate triangle strips from the faces
         stripIndices = generateStrips(faces)
-        
-        # Output the generated strips
-        print("Generated triangle strips:", stripIndices)
-
-        # Render the triangle strips
+    
         GL.indexedTriangleStripSet(coord, stripIndices, colors)
 
 
