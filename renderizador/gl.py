@@ -25,11 +25,14 @@ class GL:
     vertex_colors = []
     vertex_tex_coord = []
     texture = []
+    
 
     width = 800  # largura da tela
     height = 600  # altura da tela
     near = 0.01  # plano de corte próximo
     far = 1000  # plano de corte distante
+
+    super_buffer = None
 
     @staticmethod
     def setup(width, height, near=0.01, far=1000):
@@ -38,6 +41,7 @@ class GL:
         GL.height = height
         GL.near = near
         GL.far = far
+        GL.super_buffer = np.zeros((GL.width*2, GL.height*2, 3), dtype=np.uint8)
 
     @staticmethod
     def polypoint2D(point: list[float], colors: dict[str, list[float]]) -> None:
@@ -152,19 +156,36 @@ class GL:
             
             # Bounding Box
             box = [int(min(xs)), int(max(xs)), int(min(ys)), int(max(ys))]
+            
+            super_box = [2*v for v in box]
+            super_tri = [2*v for v in tri]
+
             # Iterando na bounding Box
-            for x in range(box[0], box[1] + 1):
-                for y in range(box[2], box[3] + 1):
-                    if insideTri(tri, x+0.5, y+0.5):
-                        if (x <GL.width and x >= 0) and (y <GL.height and y >= 0):
+            for x in range(super_box[0], super_box[1] + 1):
+                for y in range(super_box[2], super_box[3] + 1):
+                    
+                    if insideTri(super_tri, x+0.5, y+0.5):
+                        if (x <GL.width*2 and x >= 0) and (y <GL.height*2 and y >= 0):
                             # if(vertex_colors):
                             #     # interpolate position with vertex_colors to get the color
                             #     color = 
                             # if(vertex_tex_coords):
                             #     # interpolate position with the texture at each vertex to get the color
                             #     color = 
-                            gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, color)
+                            # gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, color)
+                            #draw on super buffer
 
+                            GL.super_buffer[x][y] = color
+            
+            for x in range(box[0], box[1] + 1):
+                for y in range(box[2], box[3] + 1):
+                    c1 = GL.super_buffer[2*x][2*y]
+                    c2 = GL.super_buffer[2*x][2*y+1]
+                    c3 = GL.super_buffer[2*x+1][2*y]
+                    c4 = GL.super_buffer[2*x+1][2*y+1]
+                    super_colors = np.array([c1, c2, c3, c4]).mean(axis=0).astype(np.uint8)
+                    if (x <GL.width and x >= 0) and (y <GL.height and y >= 0):
+                        gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, super_colors)
     @staticmethod
     def triangleSet(point, colors):
         """Função usada para renderizar TriangleSet."""
