@@ -21,6 +21,7 @@ class GL:
     """Classe que representa a biblioteca gráfica (Graphics Library)."""
 
     perspective_matrix = np.mat([])
+    look_at = np.mat([])
     transform_stack = []
     vertex_colors = []
     vertex_tex_coord = []
@@ -262,10 +263,19 @@ class GL:
             for i in range(0, len(points), 3):
                 p = points[i:i + 3]
                 p.append(1.0)  # homogeneous coordinate
+                p = np.array(p)
 
                 # Apply all transformation matrices
                 transform_mat_res = multiply_mats(GL.transform_stack)
-                p = GL.perspective_matrix @ transform_mat_res @ p
+                look_at_p = GL.look_at @ transform_mat_res @ p
+                print("look_at_p")
+                print(look_at_p)
+
+                p = GL.perspective_matrix @ GL.look_at @ transform_mat_res @ p
+                # print("shape")
+                # print(p.shape)
+                # Step 2: Multiply the result by the perspective matrix
+                # p = GL.perspective_matrix @ p
 
                 # Z-Divide
                 p = np.array(p).flatten()
@@ -328,9 +338,9 @@ class GL:
 
         # TRANSLADANDO E DEPOIS ROTACIONANDO
         look_at_mat = look_at_rot@look_at_trans
-        # print("look_at")
-        # print(look_at_mat)
-        # LÓGICA MATRIZ DE PROJEÇÃO
+        GL.look_at = look_at_mat
+
+
         aspect_ratio = GL.width/GL.height
         near = GL.near
         far = GL.far
@@ -348,7 +358,7 @@ class GL:
         # print("perspective")
         # print(perspective_m)
 
-        GL.perspective_matrix = perspective_m @ look_at_mat
+        GL.perspective_matrix = perspective_m
 
 
 
@@ -428,15 +438,6 @@ class GL:
     @staticmethod
     def indexedTriangleStripSet(point, index, colors,colorIndex = None):
         """Função usada para renderizar IndexedTriangleStripSet."""
-
-        # print("point: ")
-        # print(point)
-        # print("index: ")
-        # print(index)
-        # print("colors: ")
-        # print(colors)
-        # print("colorIndex: ")
-        # print(colorIndex)
 
 
         def appendVertices(points, vertices, idx):
