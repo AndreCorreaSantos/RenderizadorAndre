@@ -156,8 +156,11 @@ class GL:
             print("ERROR NO TRIANGLES SENT")
             return
 
+        print("colors aqui")
+        print(colors)
         if GL.colorPerVertex:
-            color = np.array(colors)
+            color = np.array(colors)*255
+            print(color)
         else:
             color = np.array(colors["emissiveColor"]) * 255
 
@@ -284,6 +287,7 @@ class GL:
         vertices = transform_points(point, min(xs), min(ys), min(zs), max(zs))
 
         # Call triangleSet2D with the transformed 2D vertices
+
         GL.triangleSet2D(vertices, colors)
 
 
@@ -418,21 +422,21 @@ class GL:
         for i in range(0,len(point)-6,3): #
             for u in range(0,9): # appending each vertex, 3 vertices
                 vertices.append(point[i+u])
-
+        
         GL.triangleSet(vertices,colors)
 
     @staticmethod
     def indexedTriangleStripSet(point, index, colors,colorIndex = None):
         """Função usada para renderizar IndexedTriangleStripSet."""
 
-        print("point: ")
-        print(point)
-        print("index: ")
-        print(index)
-        print("colors: ")
-        print(colors)
-        print("colorIndex: ")
-        print(colorIndex)
+        # print("point: ")
+        # print(point)
+        # print("index: ")
+        # print(index)
+        # print("colors: ")
+        # print(colors)
+        # print("colorIndex: ")
+        # print(colorIndex)
 
 
         def appendVertices(points, vertices, idx):
@@ -465,11 +469,11 @@ class GL:
                 appendColors(colors, vertex_colors, colorIndex[i + 2])
 
             i += 1 
+            
 
-        if GL.colorPerVertex:
+
+
             GL.triangleSet(vertices, vertex_colors)
-        else:
-            GL.triangleSet(vertices, colors)
 
 
     @staticmethod
@@ -531,15 +535,12 @@ class GL:
 
             return strips
         
-        vert_colors = []
-      
+        # vert_colors = []
+
+        # print("colors: ")
+        # print(color)
         if colorPerVertex:
-            vert_colors = []
-            for i in colorIndex:
-                if i != -1:
-                    col = [int(rgb*255) for rgb in color[i * 3:i * 3 + 3]]
-                    vert_colors.extend(col)
-            colors = vert_colors
+            colors = color
     
         # print("vert_colors: ")
         # print(vert_colors)
