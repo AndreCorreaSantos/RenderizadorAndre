@@ -147,6 +147,8 @@ class GL:
         if GL.colorPerVertex:
             color_array = np.array(colors) * 255
         else:
+            print("aueba")
+            print(colors)
             color = np.array(colors["emissiveColor"]) * 255
 
         # Initialize the z-buffer if not already done
@@ -462,13 +464,14 @@ class GL:
                 appendColors(colors, vertex_colors, colorIndex[i])
                 appendColors(colors, vertex_colors, colorIndex[i + 1])
                 appendColors(colors, vertex_colors, colorIndex[i + 2])
+                colors = vertex_colors
 
             i += 1 
             
 
 
 
-            GL.triangleSet(vertices, vertex_colors)
+            GL.triangleSet(vertices, colors)
 
 
     @staticmethod
@@ -501,9 +504,15 @@ class GL:
         current_texture,
     ):
         """Função usada para renderizar IndexedFaceSet com cores e texturas."""
+        # print("color")
+        # print(color)
+        # print("colors")
+        # print(colors)
+        # print("colorPerVertex")
+        # print(colorPerVertex)
+        # print("colorIndex")
+        # print(colorIndex)
 
-        def splitColors(colors):
-            return [int(colors[i:i + 3]*255) for i in range(0, len(colors), 3)]
 
 
         def splitFaces(indices):
@@ -530,20 +539,19 @@ class GL:
 
             return strips
         
-        # vert_colors = []
-
-        # print("colors: ")
-        # print(color)
-        if colorPerVertex:
+        GL.colorPerVertex = colorPerVertex
+        if len(colorIndex) == 0:
+            GL.colorPerVertex = False
+        
+        if GL.colorPerVertex:
             colors = color
     
-        # print("vert_colors: ")
-        # print(vert_colors)
 
         faces = splitFaces(coordIndex)
         stripIndices = generateStrips(faces)
-        GL.colorPerVertex = colorPerVertex
-
+        print(GL.colorPerVertex)
+        print("colors")
+        print(colors)
             
         GL.indexedTriangleStripSet(coord, stripIndices, colors, colorIndex)
 
