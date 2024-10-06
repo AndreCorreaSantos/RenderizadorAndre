@@ -35,6 +35,7 @@ class GL:
     far = 1000  # plano de corte distante
 
     super_buffer = None
+    z_buffer = None
 
     @staticmethod
     def setup(width, height, near=0.01, far=1000):
@@ -44,6 +45,7 @@ class GL:
         GL.near = near
         GL.far = far
         GL.super_buffer = np.zeros((GL.width*2, GL.height*2, 3), dtype=np.uint8)
+        GL.z_buffer = np.zeros((GL.width*2,GL.height*2), dtype=np.float32)  
 
 
     @staticmethod
@@ -124,30 +126,15 @@ class GL:
 
     @staticmethod
     def triangleSet2D(vertices, colors):
-        """Função usada para renderizar TriangleSet2D."""
+        """Function used to render TriangleSet2D with depth testing and barycentric interpolation."""
 
-        def insideTri(tri: list[float], x: float, y: float) -> bool:
-            def line_eq(x0, y0, x1, y1, px, py):
-                return (y1 - y0) * px - (x1 - x0) * py + y0 * (x1 - x0) - x0 * (y1 - y0)
-
-            # Extract x and y coordinates correctly
-            p1 = [tri[0], tri[1]]      # x1, y1
-            p2 = [tri[3], tri[4]]      # x2, y2
-            p3 = [tri[6], tri[7]]      # x3, y3
-
-            L1 = line_eq(p1[0], p1[1], p2[0], p2[1], x, y)
-            L2 = line_eq(p2[0], p2[1], p3[0], p3[1], x, y)
-            L3 = line_eq(p3[0], p3[1], p1[0], p1[1], x, y)
-
-            return (L1 > 0 and L2 > 0 and L3 > 0) or (L1 < 0 and L2 < 0 and L3 < 0)
-        
         def compute_barycentric_coordinates(tri, x, y):
             x1, y1 = tri[0], tri[1]
             x2, y2 = tri[3], tri[4]
             x3, y3 = tri[6], tri[7]
             denominator = ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 - y3))
             if denominator == 0:
-                return 0, 0, 0  # Avoid division by zero
+                return None  # Avoid division by zero
             alpha = ((y2 - y3)*(x - x3) + (x3 - x2)*(y - y3)) / denominator
             beta = ((y3 - y1)*(x - x3) + (x1 - x3)*(y - y3)) / denominator
             gamma = 1 - alpha - beta
@@ -161,6 +148,11 @@ class GL:
             color_array = np.array(colors) * 255
         else:
             color = np.array(colors["emissiveColor"]) * 255
+
+        # Initialize the z-buffer if not already done
+        if not hasattr(GL, 'z_buffer_initialized') or not GL.z_buffer_initialized:
+            GL.z_buffer = np.full((GL.width * 2, GL.height * 2), np.inf)
+            GL.z_buffer_initialized = True
 
         for i in range(0, len(vertices), 9):
             tri = vertices[i : i + 9]
@@ -188,30 +180,37 @@ class GL:
                 c1 = np.array(tri_colors[0:3])
                 c2 = np.array(tri_colors[3:6])
                 c3 = np.array(tri_colors[6:9])
-                # Corresponding z-values at each vertex
-                z1, z2, z3 = tri[2], tri[5], tri[8]
+
+            # Corresponding z-values at each vertex
+            z1, z2, z3 = tri[2], tri[5], tri[8]
+            # Compute 1/z for each vertex
+            one_over_z1 = 1.0 / z1 if z1 != 0 else 0.0
+            one_over_z2 = 1.0 / z2 if z2 != 0 else 0.0
+            one_over_z3 = 1.0 / z3 if z3 != 0 else 0.0
 
             # Iterating over the bounding box
             for x in range(super_box[0], super_box[1] + 1):
                 for y in range(super_box[2], super_box[3] + 1):
 
-                    if insideTri(super_tri, x + 0.5, y + 0.5):
-                        if (0 <= x < GL.width * 2) and (0 <= y < GL.height * 2):
+                    if (0 <= x < GL.width * 2) and (0 <= y < GL.height * 2):
+
+
+                        alpha, beta, gamma = compute_barycentric_coordinates(super_tri, x + 0.5, y + 0.5)
+
+                        # Check if the point is inside the triangle
+                        if alpha < 0 or beta < 0 or gamma < 0:
+                            continue  # Point is outside the triangle
+
+                        # Interpolate z-value
+                        z = alpha * z1 + beta * z2 + gamma * z3
+                        z *= -1  # Invert z-axis
+
+
+                        # Interpolate and assign pixel color
+                        if z < GL.z_buffer[x][y]:
+                            GL.z_buffer[x][y] = z
                             if GL.colorPerVertex:
-                                # Compute barycentric coordinates
-                                alpha, beta, gamma = compute_barycentric_coordinates(super_tri, x + 0.5, y + 0.5)
-                                # Ensure weights are within [0,1]
-                                alpha = max(0, min(alpha, 1))
-                                beta = max(0, min(beta, 1))
-                                gamma = max(0, min(gamma, 1))
-
                                 # Perspective-correct interpolation
-                                # Compute 1/z for each vertex
-                                one_over_z1 = 1.0 / z1 if z1 != 0 else 0.0
-                                one_over_z2 = 1.0 / z2 if z2 != 0 else 0.0
-                                one_over_z3 = 1.0 / z3 if z3 != 0 else 0.0
-
-                                # Interpolate 1/z at the current pixel
                                 one_over_z = alpha * one_over_z1 + beta * one_over_z2 + gamma * one_over_z3
                                 if one_over_z == 0:
                                     continue  # Avoid division by zero
@@ -223,7 +222,6 @@ class GL:
 
                                 pixel_color = np.array([r, g, b])
                                 pixel_color = np.clip(pixel_color, 0, 255).astype(np.uint8)
-
                                 GL.super_buffer[x][y] = pixel_color
                             else:
                                 GL.super_buffer[x][y] = color
@@ -238,7 +236,6 @@ class GL:
                     super_colors = np.array([c1, c2, c3, c4]).mean(axis=0).astype(np.uint8)
                     if (0 <= x < GL.width) and (0 <= y < GL.height):
                         gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, super_colors)
-
 
     @staticmethod
     def triangleSet(point, colors):
@@ -273,14 +270,8 @@ class GL:
                 transform_mat_res = multiply_mats(GL.transform_stack)
                 look_at_p = GL.look_at @ transform_mat_res @ p
                 z = np.array(look_at_p).flatten()[2]
-                print("z")
-                print(z)
 
                 p = GL.perspective_matrix @ GL.look_at @ transform_mat_res @ p
-                # print("shape")
-                # print(p.shape)
-                # Step 2: Multiply the result by the perspective matrix
-                # p = GL.perspective_matrix @ p
 
                 # Z-Divide
                 p = np.array(p).flatten()
