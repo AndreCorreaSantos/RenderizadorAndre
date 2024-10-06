@@ -149,6 +149,8 @@ class GL:
         else:
             color = np.array(colors["emissiveColor"]) * 255
 
+        transparency = colors["transparency"]
+
         for i in range(0, len(vertices), 9):
             tri = vertices[i : i + 9]
             if len(tri) != 9:
@@ -190,7 +192,7 @@ class GL:
                     if (0 <= x < GL.width * 2) and (0 <= y < GL.height * 2):
 
 
-                        alpha, beta, gamma = compute_barycentric_coordinates(super_tri, x + 0.5, y + 0.5)
+                        alpha, beta, gamma = compute_barycentric_coordinates(super_tri, x + 0.5001, y + 0.5001)
 
                         # Check if the point is inside the triangle
                         if alpha < 0 or beta < 0 or gamma < 0:
@@ -202,24 +204,41 @@ class GL:
 
 
                         # Interpolate and assign pixel color
-                        if z > GL.z_buffer[x][y]:
-                            GL.z_buffer[x][y] = z
-                            if GL.colorPerVertex:
-                                # Perspective-correct interpolation
-                                one_over_z = alpha * one_over_z1 + beta * one_over_z2 + gamma * one_over_z3
-                                if one_over_z == 0:
-                                    continue  # Avoid division by zero
 
-                                # Interpolate color components with perspective correction
-                                r = (alpha * c1[0] * one_over_z1 + beta * c2[0] * one_over_z2 + gamma * c3[0] * one_over_z3) / one_over_z
-                                g = (alpha * c1[1] * one_over_z1 + beta * c2[1] * one_over_z2 + gamma * c3[1] * one_over_z3) / one_over_z
-                                b = (alpha * c1[2] * one_over_z1 + beta * c2[2] * one_over_z2 + gamma * c3[2] * one_over_z3) / one_over_z
+                        if GL.colorPerVertex:
+                            # Perspective-correct interpolation
+                            one_over_z = alpha * one_over_z1 + beta * one_over_z2 + gamma * one_over_z3
+                            if one_over_z == 0:
+                                continue  # Avoid division by zero
 
-                                pixel_color = np.array([r, g, b])
-                                pixel_color = np.clip(pixel_color, 0, 255).astype(np.uint8)
-                                GL.super_buffer[x][y] = pixel_color
-                            else:
+                            # Interpolate color components with perspective correction
+                            r = (alpha * c1[0] * one_over_z1 + beta * c2[0] * one_over_z2 + gamma * c3[0] * one_over_z3) / one_over_z
+                            g = (alpha * c1[1] * one_over_z1 + beta * c2[1] * one_over_z2 + gamma * c3[1] * one_over_z3) / one_over_z
+                            b = (alpha * c1[2] * one_over_z1 + beta * c2[2] * one_over_z2 + gamma * c3[2] * one_over_z3) / one_over_z
+
+                            pixel_color = np.array([r, g, b])
+                            pixel_color = np.clip(pixel_color, 0, 255).astype(np.uint8)
+                            color = pixel_color
+
+
+                        if transparency == 0:
+                            # Opaque pixel
+                            if z > GL.z_buffer[x][y]:
+                                GL.z_buffer[x][y] = z
                                 GL.super_buffer[x][y] = color
+                            else:
+                                continue  # Discard pixel if behind another triangle
+                        else:
+                            previous_color = GL.super_buffer[x][y]
+                            opacity = 1 - transparency
+                            blended_color = [
+                                int(color[0] * opacity + previous_color[0] * transparency),
+                                int(color[1] * opacity + previous_color[1] * transparency),
+                                int(color[2] * opacity + previous_color[2] * transparency),
+                            ]
+                            GL.super_buffer[x][y] = blended_color
+
+                                
 
             # Downsample and draw pixels
             for x in range(box[0], box[1] + 1):
