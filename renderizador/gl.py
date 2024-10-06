@@ -25,6 +25,7 @@ class GL:
     vertex_colors = []
     vertex_tex_coord = []
     texture = []
+    colorPerVertex = False
     
 
     width = 800  # largura da tela
@@ -42,6 +43,7 @@ class GL:
         GL.near = near
         GL.far = far
         GL.super_buffer = np.zeros((GL.width*2, GL.height*2, 3), dtype=np.uint8)
+
 
     @staticmethod
     def polypoint2D(point: list[float], colors: dict[str, list[float]]) -> None:
@@ -375,15 +377,32 @@ class GL:
         GL.triangleSet(vertices,colors)
 
     @staticmethod
-    def indexedTriangleStripSet(point, index, colors):
+    def indexedTriangleStripSet(point, index, colors,colorIndex = None):
         """Função usada para renderizar IndexedTriangleStripSet."""
+
+        print("point: ")
+        print(point)
+        print("index: ")
+        print(index)
+        print("colors: ")
+        print(colors)
+        print("colorIndex: ")
+        print(colorIndex)
+
 
         def appendVertices(points, vertices, idx):
             coord = idx * 3
             for u in range(3): 
                 vertices.append(points[coord + u])
 
+        def appendColors(colors, vertex_colors, idx):
+            coord = idx * 3
+            for u in range(3): 
+                vertex_colors.append(colors[coord + u])
+
+
         vertices = []
+        vertex_colors = []
         i = 0
         while i < len(index) - 2:
             if index[i] == -1 or index[i + 1] == -1 or index[i + 2] == -1:
@@ -395,9 +414,17 @@ class GL:
             appendVertices(point, vertices, index[i + 1]) # Vertex 2
             appendVertices(point, vertices, index[i + 2]) # Vertex 3
 
+            if GL.colorPerVertex:
+                appendColors(colors, vertex_colors, colorIndex[i])
+                appendColors(colors, vertex_colors, colorIndex[i + 1])
+                appendColors(colors, vertex_colors, colorIndex[i + 2])
+
             i += 1 
 
-        GL.triangleSet(vertices, colors)
+        if GL.colorPerVertex:
+            GL.triangleSet(vertices, vertex_colors)
+        else:
+            GL.triangleSet(vertices, colors)
 
 
     @staticmethod
@@ -431,6 +458,10 @@ class GL:
     ):
         """Função usada para renderizar IndexedFaceSet com cores e texturas."""
 
+        def splitColors(colors):
+            return [int(colors[i:i + 3]*255) for i in range(0, len(colors), 3)]
+
+
         def splitFaces(indices):
             faces = [] 
             vertices = [] 
@@ -454,11 +485,26 @@ class GL:
                     strips.extend(strip)
 
             return strips
+        
+        vert_colors = []
+      
+        if colorPerVertex:
+            vert_colors = []
+            for i in colorIndex:
+                if i != -1:
+                    col = [int(rgb*255) for rgb in color[i * 3:i * 3 + 3]]
+                    vert_colors.extend(col)
+            colors = vert_colors
+    
+        # print("vert_colors: ")
+        # print(vert_colors)
 
         faces = splitFaces(coordIndex)
         stripIndices = generateStrips(faces)
-    
-        GL.indexedTriangleStripSet(coord, stripIndices, colors)
+        GL.colorPerVertex = colorPerVertex
+
+            
+        GL.indexedTriangleStripSet(coord, stripIndices, colors, colorIndex)
 
 
 
