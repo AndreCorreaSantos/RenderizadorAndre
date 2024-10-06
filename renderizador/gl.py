@@ -25,7 +25,7 @@ class GL:
     transform_stack = []
     vertex_colors = []
     vertex_tex_coord = []
-    texture = []
+    image = None
     colorPerVertex = False
     
 
@@ -125,8 +125,8 @@ class GL:
                     gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, color)
 
     @staticmethod
-    def triangleSet2D(vertices, colors, vertex_colors=None):
-        """Function used to render TriangleSet2D with depth testing and barycentric interpolation."""
+    def triangleSet2D(vertices, colors, vertex_colors=None, texture_values=None, image=None):
+        """Function used to render TriangleSet2D with depth testing, barycentric interpolation, and texture mapping."""
 
         def compute_barycentric_coordinates(tri, x, y):
             x1, y1 = tri[0], tri[1]
@@ -149,12 +149,12 @@ class GL:
         else:
             color = np.array(colors["emissiveColor"]) * 255
 
-        transparency = colors["transparency"]
+        transparency = colors.get("transparency", 0.0)
 
         for i in range(0, len(vertices), 9):
             tri = vertices[i : i + 9]
             if len(tri) != 9:
-                return
+                continue
 
             xs = [tri[j] for j in range(0, len(tri), 3)]  # x coordinates
             ys = [tri[j] for j in range(1, len(tri), 3)]  # y coordinates
@@ -173,17 +173,26 @@ class GL:
                 # Extract per-triangle colors
                 tri_colors = vertex_colors[i : i + 9]
                 if len(tri_colors) != 9:
-                    return
+                    continue
                 c1 = np.array(tri_colors[0:3])
                 c2 = np.array(tri_colors[3:6])
                 c3 = np.array(tri_colors[6:9])
 
+            if texture_values is not None:
+                # Extract per-triangle texture coordinates
+                tri_tex_coords = texture_values[i // 3 * 6 : (i // 3 + 1) * 6]
+                if len(tri_tex_coords) != 6:
+                    continue
+                u1, v1 = tri_tex_coords[0], tri_tex_coords[1]
+                u2, v2 = tri_tex_coords[2], tri_tex_coords[3]
+                u3, v3 = tri_tex_coords[4], tri_tex_coords[5]
+
             # Corresponding z-values at each vertex
             z1, z2, z3 = tri[2], tri[5], tri[8]
             # Compute 1/z for each vertex
-            one_over_z1 = 1.0 / z1 if z1 != 0 else 0.0
-            one_over_z2 = 1.0 / z2 if z2 != 0 else 0.0
-            one_over_z3 = 1.0 / z3 if z3 != 0 else 0.0
+            w1 = 1.0 / z1 if z1 != 0 else 0.0
+            w2 = 1.0 / z2 if z2 != 0 else 0.0
+            w3 = 1.0 / z3 if z3 != 0 else 0.0
 
             # Iterating over the bounding box
             for x in range(super_box[0], super_box[1] + 1):
@@ -191,8 +200,10 @@ class GL:
 
                     if (0 <= x < GL.width * 2) and (0 <= y < GL.height * 2):
 
-
-                        alpha, beta, gamma = compute_barycentric_coordinates(super_tri, x + 0.5001, y + 0.5001)
+                        bary_coords = compute_barycentric_coordinates(super_tri, x + 0.5, y + 0.5)
+                        if bary_coords is None:
+                            continue
+                        alpha, beta, gamma = bary_coords
 
                         # Check if the point is inside the triangle
                         if alpha < 0 or beta < 0 or gamma < 0:
@@ -200,35 +211,54 @@ class GL:
 
                         # Interpolate z-value
                         z = alpha * z1 + beta * z2 + gamma * z3
-                        # z *= -1  # Invert z-axis
-
-
-                        # Interpolate and assign pixel color
-
-                        if GL.colorPerVertex:
-                            # Perspective-correct interpolation
-                            one_over_z = alpha * one_over_z1 + beta * one_over_z2 + gamma * one_over_z3
-                            if one_over_z == 0:
-                                continue  # Avoid division by zero
-
-                            # Interpolate color components with perspective correction
-                            r = (alpha * c1[0] * one_over_z1 + beta * c2[0] * one_over_z2 + gamma * c3[0] * one_over_z3) / one_over_z
-                            g = (alpha * c1[1] * one_over_z1 + beta * c2[1] * one_over_z2 + gamma * c3[1] * one_over_z3) / one_over_z
-                            b = (alpha * c1[2] * one_over_z1 + beta * c2[2] * one_over_z2 + gamma * c3[2] * one_over_z3) / one_over_z
-
-                            pixel_color = np.array([r, g, b])
-                            pixel_color = np.clip(pixel_color, 0, 255).astype(np.uint8)
-                            color = pixel_color
-
 
                         if transparency == 0:
                             # Opaque pixel
                             if z > GL.z_buffer[x][y]:
                                 GL.z_buffer[x][y] = z
-                                GL.super_buffer[x][y] = color
                             else:
                                 continue  # Discard pixel if behind another triangle
-                        else:
+
+                        # Perspective-correct interpolation
+                        one_over_z = alpha * w1 + beta * w2 + gamma * w3
+                        if one_over_z == 0:
+                            continue  # Avoid division by zero
+
+                        if texture_values is not None and image is not None:
+                            # Interpolate texture coordinates
+                            u = (alpha * u1 * w1 + beta * u2 * w2 + gamma * u3 * w3) / one_over_z
+                            v = (alpha * v1 * w1 + beta * v2 * w2 + gamma * v3 * w3) / one_over_z
+
+                            # Handle wrapping/clamping of texture coordinates
+                            u = u % 1.0
+                            v = v % 1.0
+
+                            # Map (u, v) to texture pixel coordinates
+                            texture_height, texture_width = image.shape[:2]
+                            tex_x = int(u * (texture_width - 1))
+                            tex_y = int((1 - v) * (texture_height - 1))  # Flip v-axis if necessary
+
+                            # Ensure coordinates are within the texture bounds
+                            tex_x = np.clip(tex_x, 0, texture_width - 1)
+                            tex_y = np.clip(tex_y, 0, texture_height - 1)
+
+                            # Get the color from the texture image
+                            pixel_color = image[tex_y, tex_x, :3]  # Assuming RGB image
+                            pixel_color = pixel_color.astype(np.uint8)
+                            color = pixel_color
+
+                        elif GL.colorPerVertex:
+                            # Interpolate color components with perspective correction
+                            r = (alpha * c1[0] * w1 + beta * c2[0] * w2 + gamma * c3[0] * w3) / one_over_z
+                            g = (alpha * c1[1] * w1 + beta * c2[1] * w2 + gamma * c3[1] * w3) / one_over_z
+                            b = (alpha * c1[2] * w1 + beta * c2[2] * w2 + gamma * c3[2] * w3) / one_over_z
+
+                            pixel_color = np.array([r, g, b])
+                            pixel_color = np.clip(pixel_color, 0, 255).astype(np.uint8)
+                            color = pixel_color
+
+                        # Handle transparency blending
+                        if transparency > 0:
                             previous_color = GL.super_buffer[x][y]
                             opacity = 1 - transparency
                             blended_color = [
@@ -237,20 +267,20 @@ class GL:
                                 int(color[2] * opacity + previous_color[2] * transparency),
                             ]
                             GL.super_buffer[x][y] = blended_color
-
-                                
+                        else:
+                            # No transparency, overwrite the color
+                            GL.super_buffer[x][y] = color
 
             # Downsample and draw pixels
             for x in range(box[0], box[1] + 1):
                 for y in range(box[2], box[3] + 1):
-                    c1 = GL.super_buffer[2 * x][2 * y]
-                    c2 = GL.super_buffer[2 * x][2 * y + 1]
-                    c3 = GL.super_buffer[2 * x + 1][2 * y]
-                    c4 = GL.super_buffer[2 * x + 1][2 * y + 1]
-                    super_colors = np.array([c1, c2, c3, c4]).mean(axis=0).astype(np.uint8)
                     if (0 <= x < GL.width) and (0 <= y < GL.height):
+                        c1 = GL.super_buffer[2 * x][2 * y]
+                        c2 = GL.super_buffer[2 * x][2 * y + 1]
+                        c3 = GL.super_buffer[2 * x + 1][2 * y]
+                        c4 = GL.super_buffer[2 * x + 1][2 * y + 1]
+                        super_colors = np.array([c1, c2, c3, c4]).mean(axis=0).astype(np.uint8)
                         gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, super_colors)
-
     @staticmethod
     def triangleSet(point, colors,vertex_colors=None):
         """Função usada para renderizar TriangleSet."""
@@ -540,17 +570,20 @@ class GL:
 
             return strips
         
+
+        if current_texture:
+            GL.image = gpu.GPU.load_texture(current_texture[0])
+        
         GL.colorPerVertex = colorPerVertex
         if len(colorIndex) == 0:
             GL.colorPerVertex = False
         
         vertex_colors = color
-
-
-
         faces = splitFaces(coordIndex)
         stripIndices = generateStrips(faces)
-            
+        
+
+
         GL.indexedTriangleStripSet(coord, stripIndices, colors,vertex_colors, colorIndex)
 
 
