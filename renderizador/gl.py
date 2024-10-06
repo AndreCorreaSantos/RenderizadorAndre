@@ -45,7 +45,7 @@ class GL:
         GL.near = near
         GL.far = far
         GL.super_buffer = np.zeros((GL.width*2, GL.height*2, 3), dtype=np.uint8)
-        GL.z_buffer = np.zeros((GL.width*2,GL.height*2), dtype=np.float32)  
+        GL.z_buffer =  - np.inf * np.ones((GL.width*2, GL.height*2)) 
 
 
     @staticmethod
@@ -147,14 +147,7 @@ class GL:
         if GL.colorPerVertex:
             vertex_colors = np.array(vertex_colors) * 255
         else:
-            print("aueba")
-            print(colors)
             color = np.array(colors["emissiveColor"]) * 255
-
-        # Initialize the z-buffer if not already done
-        if not hasattr(GL, 'z_buffer_initialized') or not GL.z_buffer_initialized:
-            GL.z_buffer = np.full((GL.width * 2, GL.height * 2), np.inf)
-            GL.z_buffer_initialized = True
 
         for i in range(0, len(vertices), 9):
             tri = vertices[i : i + 9]
@@ -205,11 +198,11 @@ class GL:
 
                         # Interpolate z-value
                         z = alpha * z1 + beta * z2 + gamma * z3
-                        z *= -1  # Invert z-axis
+                        # z *= -1  # Invert z-axis
 
 
                         # Interpolate and assign pixel color
-                        if z < GL.z_buffer[x][y]:
+                        if z > GL.z_buffer[x][y]:
                             GL.z_buffer[x][y] = z
                             if GL.colorPerVertex:
                                 # Perspective-correct interpolation
@@ -452,7 +445,7 @@ class GL:
         i = 0
         while i < len(index) - 2:
             if index[i] == -1 or index[i + 1] == -1 or index[i + 2] == -1:
-                i += 1 # pulando indices -1
+                i += 1 
                 continue
 
             
@@ -466,12 +459,6 @@ class GL:
                 appendColors(vertex_colors, indexed_vertex_colors, colorIndex[i + 2])
 
             i += 1 
-            
-            print("colorIndex")
-            print(colorIndex)
-
-            print("vertex_colors_1")
-            print(vertex_colors)
 
 
             GL.triangleSet(vertices, colors, indexed_vertex_colors)
