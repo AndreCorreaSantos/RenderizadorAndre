@@ -148,25 +148,20 @@ class GL:
             denominator = ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 - y3))
             if denominator == 0:
                 return 0, 0, 0  # Avoid division by zero
-            w1 = ((y2 - y3)*(x - x3) + (x3 - x2)*(y - y3)) / denominator
-            w2 = ((y3 - y1)*(x - x3) + (x1 - x3)*(y - y3)) / denominator
-            w3 = 1 - w1 - w2
-            return w1, w2, w3
+            alpha = ((y2 - y3)*(x - x3) + (x3 - x2)*(y - y3)) / denominator
+            beta = ((y3 - y1)*(x - x3) + (x1 - x3)*(y - y3)) / denominator
+            gamma = 1 - alpha - beta
+            return alpha, beta, gamma
 
         if len(vertices) < 9:
             print("ERROR NO TRIANGLES SENT")
             return
 
-        print("colors aqui")
-        print(colors)
         if GL.colorPerVertex:
-            color = np.array(colors)*255
-            print(color)
+            color_array = np.array(colors) * 255
         else:
             color = np.array(colors["emissiveColor"]) * 255
 
-        print("aueba")
-        print(color)
         for i in range(0, len(vertices), 9):
             tri = vertices[i : i + 9]
             if len(tri) != 9:
@@ -175,14 +170,7 @@ class GL:
             xs = [tri[j] for j in range(0, len(tri), 3)]  # x coordinates
             ys = [tri[j] for j in range(1, len(tri), 3)]  # y coordinates
             zs = [tri[j] for j in range(2, len(tri), 3)]  # z coordinates
-            
-            print("xs")
-            print(xs)
-            print("ys")
-            print(ys)
-            print("zs")
-            print(zs)
-            
+
             # Bounding Box
             box = [int(min(xs)), int(max(xs)), int(min(ys)), int(max(ys))]
 
@@ -194,37 +182,53 @@ class GL:
 
             if GL.colorPerVertex:
                 # Extract per-triangle colors
-                tri_colors = color[i : i + 9]
-                print("tri_colors") 
-                print(tri_colors)
+                tri_colors = color_array[i : i + 9]
                 if len(tri_colors) != 9:
                     return
                 c1 = np.array(tri_colors[0:3])
                 c2 = np.array(tri_colors[3:6])
                 c3 = np.array(tri_colors[6:9])
-            
-           
+                # Corresponding z-values at each vertex
+                z1, z2, z3 = tri[2], tri[5], tri[8]
+
             # Iterating over the bounding box
             for x in range(super_box[0], super_box[1] + 1):
                 for y in range(super_box[2], super_box[3] + 1):
 
-                    if insideTri(super_tri, x + 0.5001, y + 0.5001):
+                    if insideTri(super_tri, x + 0.5, y + 0.5):
                         if (0 <= x < GL.width * 2) and (0 <= y < GL.height * 2):
-                            
                             if GL.colorPerVertex:
                                 # Compute barycentric coordinates
-                                w1, w2, w3 = compute_barycentric_coordinates(super_tri, x + 0.5, y + 0.5)
+                                alpha, beta, gamma = compute_barycentric_coordinates(super_tri, x + 0.5, y + 0.5)
                                 # Ensure weights are within [0,1]
-                                w1 = max(0, min(w1, 1))
-                                w2 = max(0, min(w2, 1))
-                                w3 = max(0, min(w3, 1))
-                                # Interpolate colors
-                                pixel_color = w1 * c1 + w2 * c2 + w3 * c3
+                                alpha = max(0, min(alpha, 1))
+                                beta = max(0, min(beta, 1))
+                                gamma = max(0, min(gamma, 1))
+
+                                # Perspective-correct interpolation
+                                # Compute 1/z for each vertex
+                                one_over_z1 = 1.0 / z1 if z1 != 0 else 0.0
+                                one_over_z2 = 1.0 / z2 if z2 != 0 else 0.0
+                                one_over_z3 = 1.0 / z3 if z3 != 0 else 0.0
+
+                                # Interpolate 1/z at the current pixel
+                                one_over_z = alpha * one_over_z1 + beta * one_over_z2 + gamma * one_over_z3
+                                if one_over_z == 0:
+                                    continue  # Avoid division by zero
+
+                                # Interpolate color components with perspective correction
+                                r = (alpha * c1[0] * one_over_z1 + beta * c2[0] * one_over_z2 + gamma * c3[0] * one_over_z3) / one_over_z
+                                g = (alpha * c1[1] * one_over_z1 + beta * c2[1] * one_over_z2 + gamma * c3[1] * one_over_z3) / one_over_z
+                                b = (alpha * c1[2] * one_over_z1 + beta * c2[2] * one_over_z2 + gamma * c3[2] * one_over_z3) / one_over_z
+
+                                pixel_color = np.array([r, g, b])
                                 pixel_color = np.clip(pixel_color, 0, 255).astype(np.uint8)
+
                                 GL.super_buffer[x][y] = pixel_color
                             else:
                                 GL.super_buffer[x][y] = color
 
+            # Downsample and draw pixels
             for x in range(box[0], box[1] + 1):
                 for y in range(box[2], box[3] + 1):
                     c1 = GL.super_buffer[2 * x][2 * y]
@@ -268,8 +272,9 @@ class GL:
                 # Apply all transformation matrices
                 transform_mat_res = multiply_mats(GL.transform_stack)
                 look_at_p = GL.look_at @ transform_mat_res @ p
-                print("look_at_p")
-                print(look_at_p)
+                z = np.array(look_at_p).flatten()[2]
+                print("z")
+                print(z)
 
                 p = GL.perspective_matrix @ GL.look_at @ transform_mat_res @ p
                 # print("shape")
@@ -285,7 +290,7 @@ class GL:
                 p = np.array(p).flatten()
                 transformed_points.append(p[0])
                 transformed_points.append(p[1])
-                transformed_points.append(p[2])
+                transformed_points.append(z)
 
             return transformed_points
 
@@ -407,8 +412,6 @@ class GL:
             [0, 0, 0, 1]
         ])
         object_to_world_m = translation_m  @ rotation_m @ scale_m
-        # print("model")
-        # print(object_to_world_m)
         GL.transform_stack.append(object_to_world_m)
 
 
