@@ -139,13 +139,30 @@ class GL:
             L3 = line_eq(p3[0], p3[1], p1[0], p1[1], x, y)
 
             return (L1 > 0 and L2 > 0 and L3 > 0) or (L1 < 0 and L2 < 0 and L3 < 0)
+        
+        def compute_barycentric_coordinates(tri, x, y):
+            x1, y1 = tri[0], tri[1]
+            x2, y2 = tri[3], tri[4]
+            x3, y3 = tri[6], tri[7]
+            denominator = ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 - y3))
+            if denominator == 0:
+                return 0, 0, 0  # Avoid division by zero
+            w1 = ((y2 - y3)*(x - x3) + (x3 - x2)*(y - y3)) / denominator
+            w2 = ((y3 - y1)*(x - x3) + (x1 - x3)*(y - y3)) / denominator
+            w3 = 1 - w1 - w2
+            return w1, w2, w3
 
         if len(vertices) < 9:
             print("ERROR NO TRIANGLES SENT")
             return
 
-        color = np.array(colors["emissiveColor"]) * 255
+        if GL.colorPerVertex:
+            color = np.array(colors)
+        else:
+            color = np.array(colors["emissiveColor"]) * 255
 
+        print("aueba")
+        print(color)
         for i in range(0, len(vertices), 9):
             tri = vertices[i : i + 9]
             if len(tri) != 9:
@@ -153,7 +170,15 @@ class GL:
 
             xs = [tri[j] for j in range(0, len(tri), 3)]  # x coordinates
             ys = [tri[j] for j in range(1, len(tri), 3)]  # y coordinates
-
+            zs = [tri[j] for j in range(2, len(tri), 3)]  # z coordinates
+            
+            print("xs")
+            print(xs)
+            print("ys")
+            print(ys)
+            print("zs")
+            print(zs)
+            
             # Bounding Box
             box = [int(min(xs)), int(max(xs)), int(min(ys)), int(max(ys))]
 
@@ -163,14 +188,38 @@ class GL:
             for j in range(0, len(tri), 3):
                 super_tri.extend([2 * tri[j], 2 * tri[j + 1], tri[j + 2]])  # Scale x and y, keep z
 
+            if GL.colorPerVertex:
+                # Extract per-triangle colors
+                tri_colors = color[i : i + 9]
+                print("tri_colors") 
+                print(tri_colors)
+                if len(tri_colors) != 9:
+                    return
+                c1 = np.array(tri_colors[0:3])
+                c2 = np.array(tri_colors[3:6])
+                c3 = np.array(tri_colors[6:9])
+            
+           
             # Iterating over the bounding box
             for x in range(super_box[0], super_box[1] + 1):
                 for y in range(super_box[2], super_box[3] + 1):
 
-                    if insideTri(super_tri, x + 0.5, y + 0.5):
+                    if insideTri(super_tri, x + 0.5001, y + 0.5001):
                         if (0 <= x < GL.width * 2) and (0 <= y < GL.height * 2):
-                            # Draw on super buffer
-                            GL.super_buffer[x][y] = color
+                            
+                            if GL.colorPerVertex:
+                                # Compute barycentric coordinates
+                                w1, w2, w3 = compute_barycentric_coordinates(super_tri, x + 0.5, y + 0.5)
+                                # Ensure weights are within [0,1]
+                                w1 = max(0, min(w1, 1))
+                                w2 = max(0, min(w2, 1))
+                                w3 = max(0, min(w3, 1))
+                                # Interpolate colors
+                                pixel_color = w1 * c1 + w2 * c2 + w3 * c3
+                                pixel_color = np.clip(pixel_color, 0, 255).astype(np.uint8)
+                                GL.super_buffer[x][y] = pixel_color
+                            else:
+                                GL.super_buffer[x][y] = color
 
             for x in range(box[0], box[1] + 1):
                 for y in range(box[2], box[3] + 1):
@@ -182,7 +231,7 @@ class GL:
                     if (0 <= x < GL.width) and (0 <= y < GL.height):
                         gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, super_colors)
 
-                        
+
     @staticmethod
     def triangleSet(point, colors):
         """Função usada para renderizar TriangleSet."""
