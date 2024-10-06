@@ -125,7 +125,7 @@ class GL:
                     gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, color)
 
     @staticmethod
-    def triangleSet2D(vertices, colors):
+    def triangleSet2D(vertices, colors, vertex_colors=None):
         """Function used to render TriangleSet2D with depth testing and barycentric interpolation."""
 
         def compute_barycentric_coordinates(tri, x, y):
@@ -145,7 +145,7 @@ class GL:
             return
 
         if GL.colorPerVertex:
-            color_array = np.array(colors) * 255
+            vertex_colors = np.array(vertex_colors) * 255
         else:
             print("aueba")
             print(colors)
@@ -176,7 +176,7 @@ class GL:
 
             if GL.colorPerVertex:
                 # Extract per-triangle colors
-                tri_colors = color_array[i : i + 9]
+                tri_colors = vertex_colors[i : i + 9]
                 if len(tri_colors) != 9:
                     return
                 c1 = np.array(tri_colors[0:3])
@@ -240,7 +240,7 @@ class GL:
                         gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, super_colors)
 
     @staticmethod
-    def triangleSet(point, colors):
+    def triangleSet(point, colors,vertex_colors=None):
         """Função usada para renderizar TriangleSet."""
         
         # Helper function to multiply matrices
@@ -296,7 +296,7 @@ class GL:
 
         # Call triangleSet2D with the transformed 2D vertices
 
-        GL.triangleSet2D(vertices, colors)
+        GL.triangleSet2D(vertices, colors,vertex_colors)
 
 
     @staticmethod
@@ -422,17 +422,17 @@ class GL:
 
 
     @staticmethod
-    def triangleStripSet(point, stripCount, colors):
+    def triangleStripSet(point, stripCount, colors,vertex_colors=None):
         """Função usada para renderizar TriangleStripSet."""
         vertices = []                      
         for i in range(0,len(point)-6,3): #
             for u in range(0,9): # appending each vertex, 3 vertices
                 vertices.append(point[i+u])
         
-        GL.triangleSet(vertices,colors)
+        GL.triangleSet(vertices,colors,vertex_colors)
 
     @staticmethod
-    def indexedTriangleStripSet(point, index, colors,colorIndex = None):
+    def indexedTriangleStripSet(point, index, colors,vertex_colors = None,colorIndex = None):
         """Função usada para renderizar IndexedTriangleStripSet."""
 
 
@@ -441,14 +441,14 @@ class GL:
             for u in range(3): 
                 vertices.append(points[coord + u])
 
-        def appendColors(colors, vertex_colors, idx):
+        def appendColors(vertex_colors, indexed_vertex_colors, idx):
             coord = idx * 3
             for u in range(3): 
-                vertex_colors.append(colors[coord + u])
+                indexed_vertex_colors.append(vertex_colors[coord + u])
 
 
         vertices = []
-        vertex_colors = []
+        indexed_vertex_colors = []
         i = 0
         while i < len(index) - 2:
             if index[i] == -1 or index[i + 1] == -1 or index[i + 2] == -1:
@@ -461,17 +461,20 @@ class GL:
             appendVertices(point, vertices, index[i + 2]) # Vertex 3
 
             if GL.colorPerVertex:
-                appendColors(colors, vertex_colors, colorIndex[i])
-                appendColors(colors, vertex_colors, colorIndex[i + 1])
-                appendColors(colors, vertex_colors, colorIndex[i + 2])
-                colors = vertex_colors
+                appendColors(vertex_colors, indexed_vertex_colors, colorIndex[i])
+                appendColors(vertex_colors, indexed_vertex_colors, colorIndex[i + 1])
+                appendColors(vertex_colors, indexed_vertex_colors, colorIndex[i + 2])
 
             i += 1 
             
+            print("colorIndex")
+            print(colorIndex)
+
+            print("vertex_colors_1")
+            print(vertex_colors)
 
 
-
-            GL.triangleSet(vertices, colors)
+            GL.triangleSet(vertices, colors, indexed_vertex_colors)
 
 
     @staticmethod
@@ -504,14 +507,6 @@ class GL:
         current_texture,
     ):
         """Função usada para renderizar IndexedFaceSet com cores e texturas."""
-        # print("color")
-        # print(color)
-        # print("colors")
-        # print(colors)
-        # print("colorPerVertex")
-        # print(colorPerVertex)
-        # print("colorIndex")
-        # print(colorIndex)
 
 
 
@@ -543,17 +538,14 @@ class GL:
         if len(colorIndex) == 0:
             GL.colorPerVertex = False
         
-        if GL.colorPerVertex:
-            colors = color
-    
+        vertex_colors = color
+
+
 
         faces = splitFaces(coordIndex)
         stripIndices = generateStrips(faces)
-        print(GL.colorPerVertex)
-        print("colors")
-        print(colors)
             
-        GL.indexedTriangleStripSet(coord, stripIndices, colors, colorIndex)
+        GL.indexedTriangleStripSet(coord, stripIndices, colors,vertex_colors, colorIndex)
 
 
 
