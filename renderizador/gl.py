@@ -129,65 +129,60 @@ class GL:
             def line_eq(x0, y0, x1, y1, px, py):
                 return (y1 - y0) * px - (x1 - x0) * py + y0 * (x1 - x0) - x0 * (y1 - y0)
 
-            p1 = [tri[0], tri[1]]
-            p2 = [tri[2], tri[3]]
-            p3 = [tri[4], tri[5]]
+            # Extract x and y coordinates correctly
+            p1 = [tri[0], tri[1]]      # x1, y1
+            p2 = [tri[3], tri[4]]      # x2, y2
+            p3 = [tri[6], tri[7]]      # x3, y3
 
             L1 = line_eq(p1[0], p1[1], p2[0], p2[1], x, y)
             L2 = line_eq(p2[0], p2[1], p3[0], p3[1], x, y)
             L3 = line_eq(p3[0], p3[1], p1[0], p1[1], x, y)
 
-            if (L1 > 0 and L2 > 0 and L3 > 0) or (L1 < 0 and L2 < 0 and L3 < 0):
-                return True
-            return False
+            return (L1 > 0 and L2 > 0 and L3 > 0) or (L1 < 0 and L2 < 0 and L3 < 0)
 
-        if len(vertices) < 5:
+        if len(vertices) < 9:
             print("ERROR NO TRIANGLES SENT")
-        
-
+            return
 
         color = np.array(colors["emissiveColor"]) * 255
 
-        for i in range(0, len(vertices), 6):
-            tri = vertices[i : i + 6]
-            xs = [tri[j] for j in range(0, len(tri), 2)]
-            ys = [tri[j] for j in range(1, len(tri), 2)]
-
-            if(len(tri) != 6):
+        for i in range(0, len(vertices), 9):
+            tri = vertices[i : i + 9]
+            if len(tri) != 9:
                 return
-            
+
+            xs = [tri[j] for j in range(0, len(tri), 3)]  # x coordinates
+            ys = [tri[j] for j in range(1, len(tri), 3)]  # y coordinates
+
             # Bounding Box
             box = [int(min(xs)), int(max(xs)), int(min(ys)), int(max(ys))]
-            
-            super_box = [2*v for v in box]
-            super_tri = [2*v for v in tri]
 
-            # Iterando na bounding Box
+            # Scale only x and y for super sampling
+            super_box = [2 * v for v in box]
+            super_tri = []
+            for j in range(0, len(tri), 3):
+                super_tri.extend([2 * tri[j], 2 * tri[j + 1], tri[j + 2]])  # Scale x and y, keep z
+
+            # Iterating over the bounding box
             for x in range(super_box[0], super_box[1] + 1):
                 for y in range(super_box[2], super_box[3] + 1):
-                    
-                    if insideTri(super_tri, x+0.5, y+0.5):
-                        if (x <GL.width*2 and x >= 0) and (y <GL.height*2 and y >= 0):
-                            # if(vertex_colors):
-                            #     # interpolate position with vertex_colors to get the color
-                            #     color = 
-                            # if(vertex_tex_coords):
-                            #     # interpolate position with the texture at each vertex to get the color
-                            #     color = 
-                            # gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, color)
-                            #draw on super buffer
 
+                    if insideTri(super_tri, x + 0.5, y + 0.5):
+                        if (0 <= x < GL.width * 2) and (0 <= y < GL.height * 2):
+                            # Draw on super buffer
                             GL.super_buffer[x][y] = color
-            
+
             for x in range(box[0], box[1] + 1):
                 for y in range(box[2], box[3] + 1):
-                    c1 = GL.super_buffer[2*x][2*y]
-                    c2 = GL.super_buffer[2*x][2*y+1]
-                    c3 = GL.super_buffer[2*x+1][2*y]
-                    c4 = GL.super_buffer[2*x+1][2*y+1]
+                    c1 = GL.super_buffer[2 * x][2 * y]
+                    c2 = GL.super_buffer[2 * x][2 * y + 1]
+                    c3 = GL.super_buffer[2 * x + 1][2 * y]
+                    c4 = GL.super_buffer[2 * x + 1][2 * y + 1]
                     super_colors = np.array([c1, c2, c3, c4]).mean(axis=0).astype(np.uint8)
-                    if (x <GL.width and x >= 0) and (y <GL.height and y >= 0):
+                    if (0 <= x < GL.width) and (0 <= y < GL.height):
                         gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, super_colors)
+
+                        
     @staticmethod
     def triangleSet(point, colors):
         """Função usada para renderizar TriangleSet."""
@@ -228,6 +223,7 @@ class GL:
                 p = np.array(p).flatten()
                 transformed_points.append(p[0])
                 transformed_points.append(p[1])
+                transformed_points.append(p[2])
 
             return transformed_points
 
