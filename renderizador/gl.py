@@ -198,9 +198,6 @@ class GL:
             if len(tri) != 9:
                 continue
 
-            
-            
-
             xs = [tri[j] for j in range(0, len(tri), 3)]  # x coordinates
             ys = [tri[j] for j in range(1, len(tri), 3)]  # y coordinates
             zs = [tri[j] for j in range(2, len(tri), 3)]  # z coordinates
