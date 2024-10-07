@@ -128,15 +128,44 @@ class GL:
     def triangleSet2D(vertices, colors, vertex_colors=None, texture_values=None):
         """Function used to render TriangleSet2D with depth testing, barycentric interpolation, and texture mapping."""
 
+        def get_level(dudx, dudy, dvdx, dvdy):
+            epsilon = 1e-6
+            l = max(np.sqrt(dudx**2 + dvdx**2), np.sqrt(dudy**2 + dvdy**2), epsilon)
+            level = int(np.log2(l))
+            level = max(0, level)
+            return level
+        
+        def get_mipmaps(texture): # returns a list of downsampled images to be used as mipmaps, REMEMBER TO REFACTOR THIS LATER
+            mipmap_levels = [texture]  
+            mip = texture.copy()
+            while mip.shape[0] > 1 and mip.shape[1] > 1:
+            
+                height = mip.shape[0]
+                width = mip.shape[1]
+                new_height = max(1, height // 2)
+                new_width = max(1, width // 2)
+                blurred_image = np.zeros((new_height, new_width, mip.shape[2]), dtype=mip.dtype)
+                for y in range(new_height):
+                    for x in range(new_width):
+                        # Average the 2x2 block of pixels
+                        filter = mip[2 * y:2 * y + 2, 2 * x:2 * x + 2]
+                        blurred_image[y, x] = np.mean(filter, axis=(0, 1))
+              
+                mipmap_levels.append(blurred_image)
+                mip = blurred_image
+
+            return mipmap_levels
+        
+        mipmaps = get_mipmaps(GL.image)
+    
+
         def compute_barycentric_coordinates(tri, x, y):
             x1, y1 = tri[0], tri[1]
             x2, y2 = tri[3], tri[4]
             x3, y3 = tri[6], tri[7]
-            denominator = ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 - y3))
-            if denominator == 0:
-                return None  # Avoid division by zero
-            alpha = ((y2 - y3)*(x - x3) + (x3 - x2)*(y - y3)) / denominator
-            beta = ((y3 - y1)*(x - x3) + (x1 - x3)*(y - y3)) / denominator
+            d = ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 - y3))
+            alpha = ((y2 - y3)*(x - x3) + (x3 - x2)*(y - y3)) / d
+            beta = ((y3 - y1)*(x - x3) + (x1 - x3)*(y - y3)) / d
             gamma = 1 - alpha - beta
             return alpha, beta, gamma
 
@@ -211,7 +240,7 @@ class GL:
                 for y in range(super_box[2], super_box[3] + 1):
 
                     if (0 <= x < GL.width * 2) and (0 <= y < GL.height * 2):
-
+                        
                         bary_coords = compute_barycentric_coordinates(super_tri, x + 0.5, y + 0.5)
                         if bary_coords is None:
                             continue
@@ -237,26 +266,48 @@ class GL:
                             continue  # Avoid division by zero
 
                         if texture_values is not None and GL.image is not None:
+                            scale_factor = GL.image.shape[0]
+
+                            # Step 1: Perspective-correct interpolation of u and v
                             u = (alpha * u1 * w1 + beta * u2 * w2 + gamma * u3 * w3) / one_over_z
                             v = (alpha * v1 * w1 + beta * v2 * w2 + gamma * v3 * w3) / one_over_z
 
-                            # Handle wrapping/clamping of texture coordinates
-                            u = u % 1.0
-                            v = (1.0-v) % 1.0
+                            # Interpolate u and v at neighboring pixels (x+1, y) and (x, y+1) for mipmap level calculation
+                            a10, b10, g10 = compute_barycentric_coordinates(super_tri, x + 1.0, y)
+                            u10 = (a10 * u1 * w1 + b10 * u2 * w2 + g10 * u3 * w3) / (a10 * w1 + b10 * w2 + g10 * w3)
+                            v10 = (a10 * v1 * w1 + b10 * v2 * w2 + g10 * v3 * w3) / (a10 * w1 + b10 * w2 + g10 * w3)
 
-                            # Map (u, v) to texture pixel coordinates
-                            texture_height, texture_width = GL.image.shape[:2]
-                            tex_x = int(v * (texture_width - 1))
-                            tex_y = int(u * (texture_height - 1))  # Flip v-axis if necessary
+                            a01, b01, g01 = compute_barycentric_coordinates(super_tri, x, y + 1.0)
+                            u01 = (a01 * u1 * w1 + b01 * u2 * w2 + g01 * u3 * w3) / (a01 * w1 + b01 * w2 + g01 * w3)
+                            v01 = (a01 * v1 * w1 + b01 * v2 * w2 + g01 * v3 * w3) / (a01 * w1 + b01 * w2 + g01 * w3)
 
-                            # Ensure coordinates are within the texture bounds
-                            tex_x = np.clip(tex_x, 0, texture_width - 1)
-                            tex_y = np.clip(tex_y, 0, texture_height - 1)
+                            # Step 3: Calculate derivatives for mipmap level
+                            dudx = scale_factor * (u10 - u)
+                            dvdx = scale_factor * (v10 - v)
+                            dudy = scale_factor * (u01 - u)
+                            dvdy = scale_factor * (v01 - v)
 
-                            # Get the color from the texture image
-                            pixel_color = GL.image[tex_y, tex_x, :3]  # Assuming RGB image
-                            pixel_color = pixel_color.astype(np.uint8)
-                            color = pixel_color
+                            level = get_level(dudx, dudy, dvdx, dvdy)
+
+                            # Step 4: Select the appropriate mipmap level
+                            mipmap = mipmaps[level]
+                            map_scale = mipmap.shape[0]
+
+                            # Step 5: Handle texture wrapping or clamping
+                            u = int(u * map_scale) % map_scale
+                            v = int(v * map_scale) % map_scale  # Flip v-axis if necessary
+                            uv = np.array([u, v])
+                            
+                            rotation_matrix = np.array([[0, -1],
+                                                        [1,  0]])
+                            # Apply the 90-degree clockwise rotation
+                            u,v= np.dot(rotation_matrix, uv)
+
+                            # Step 6: Get pixel color from the mipmap
+                            color = mipmap[v][u][0:3]
+
+
+
 
                         elif GL.colorPerVertex:
                             # Interpolate color components with perspective correction
