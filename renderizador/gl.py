@@ -171,8 +171,16 @@ class GL:
             return alpha, beta, gamma
 
         if len(vertices) < 9:
-            print("ERROR NO TRIANGLES SENT")
-            return
+            if len(vertices) == 6:
+                new_vertices = []   
+                for i in range(0, len(vertices), 2):
+                    new_vertices.append(vertices[i])
+                    new_vertices.append(vertices[i + 1])
+                    new_vertices.append(-1.0)
+                vertices = new_vertices
+            else:
+                print("ERROR NO TRIANGLES SENT")
+                return
 
         if GL.colorPerVertex:
             vertex_colors = np.array(vertex_colors) * 255
