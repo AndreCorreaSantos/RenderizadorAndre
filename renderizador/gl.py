@@ -190,8 +190,6 @@ class GL:
                 if len(tri_tex_coords) != 6:
                     continue
                 
-                print("tri_tex_coords")
-                print(tri_tex_coords)
                 u1, v1 = tri_tex_coords[0], tri_tex_coords[1]
                 u2, v2 = tri_tex_coords[2], tri_tex_coords[3]
                 u3, v3 = tri_tex_coords[4], tri_tex_coords[5]
@@ -234,9 +232,6 @@ class GL:
                             continue  # Avoid division by zero
 
                         if texture_values is not None and GL.image is not None:
-                        # if True:
-                            # print("TRIANGLE" + str(triangle))
-                            # Interpolate texture coordinates
                             u = (alpha * u1 * w1 + beta * u2 * w2 + gamma * u3 * w3) / one_over_z
                             v = (alpha * v1 * w1 + beta * v2 * w2 + gamma * v3 * w3) / one_over_z
 
