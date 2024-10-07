@@ -135,25 +135,25 @@ class GL:
             level = max(0, level)
             return level
         
-        def get_mipmaps(texture): # returns a list of downsampled images to be used as mipmaps, REMEMBER TO REFACTOR THIS LATER
+        def get_mipmaps(texture): # returns a list of downsampled images to be used as mipmaps, REMEMBER TO REFACTOR THIS LATER IT STINKS
             mipmap_levels = [texture]  
             mip = texture.copy()
-            while mip.shape[0] > 1 and mip.shape[1] > 1:
-            
-                height = mip.shape[0]
-                width = mip.shape[1]
+            height = mip.shape[0]
+            width = mip.shape[1]
+            condition = height > 1 and width > 1
+            while condition:
                 new_height = max(1, height // 2)
                 new_width = max(1, width // 2)
                 blurred_image = np.zeros((new_height, new_width, mip.shape[2]), dtype=mip.dtype)
                 for y in range(new_height):
                     for x in range(new_width):
-                        # Average the 2x2 block of pixels
                         filter = mip[2 * y:2 * y + 2, 2 * x:2 * x + 2]
                         blurred_image[y, x] = np.mean(filter, axis=(0, 1))
-              
                 mipmap_levels.append(blurred_image)
                 mip = blurred_image
-
+                height = mip.shape[0]
+                width = mip.shape[1]
+                condition = height > 1 and width > 1
             return mipmap_levels
         
         if texture_values is not None and GL.image is not None:
@@ -269,7 +269,7 @@ class GL:
                         if texture_values is not None and GL.image is not None:
                             scale_factor = GL.image.shape[0]
 
-                            # Step 1: Perspective-correct interpolation of u and v
+                            # Perspective-correct interpolation of u and v
                             u = (alpha * u1 * w1 + beta * u2 * w2 + gamma * u3 * w3) / one_over_z
                             v = (alpha * v1 * w1 + beta * v2 * w2 + gamma * v3 * w3) / one_over_z
 
@@ -282,7 +282,7 @@ class GL:
                             u01 = (a01 * u1 * w1 + b01 * u2 * w2 + g01 * u3 * w3) / (a01 * w1 + b01 * w2 + g01 * w3)
                             v01 = (a01 * v1 * w1 + b01 * v2 * w2 + g01 * v3 * w3) / (a01 * w1 + b01 * w2 + g01 * w3)
 
-                            # Step 3: Calculate derivatives for mipmap level
+                            # Calculate derivatives for mipmap level
                             dudx = scale_factor * (u10 - u)
                             dvdx = scale_factor * (v10 - v)
                             dudy = scale_factor * (u01 - u)
@@ -290,11 +290,11 @@ class GL:
 
                             level = get_level(dudx, dudy, dvdx, dvdy)
 
-                            # Step 4: Select the appropriate mipmap level
+                            # Select the appropriate mipmap level
                             mipmap = mipmaps[level]
                             map_scale = mipmap.shape[0]
 
-                            # Step 5: Handle texture wrapping or clamping
+                            # Handle texture wrapping or clamping
                             u = int(u * map_scale) % map_scale
                             v = int(v * map_scale) % map_scale  # Flip v-axis if necessary
                             uv = np.array([u, v])
@@ -304,7 +304,7 @@ class GL:
                             # Apply the 90-degree clockwise rotation
                             u,v= np.dot(rotation_matrix, uv)
 
-                            # Step 6: Get pixel color from the mipmap
+                            # Get pixel color from the mipmap
                             color = mipmap[v][u][0:3]
 
 
