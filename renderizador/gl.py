@@ -242,12 +242,12 @@ class GL:
 
                             # Handle wrapping/clamping of texture coordinates
                             u = u % 1.0
-                            v = v % 1.0
+                            v = (1.0-v) % 1.0
 
                             # Map (u, v) to texture pixel coordinates
                             texture_height, texture_width = GL.image.shape[:2]
-                            tex_x = int(u * (texture_width - 1))
-                            tex_y = int((1 - v) * (texture_height - 1))  # Flip v-axis if necessary
+                            tex_x = int(v * (texture_width - 1))
+                            tex_y = int(u * (texture_height - 1))  # Flip v-axis if necessary
 
                             # Ensure coordinates are within the texture bounds
                             tex_x = np.clip(tex_x, 0, texture_width - 1)
