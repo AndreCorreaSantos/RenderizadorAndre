@@ -156,7 +156,8 @@ class GL:
 
             return mipmap_levels
         
-        mipmaps = get_mipmaps(GL.image)
+        if texture_values is not None and GL.image is not None:
+            mipmaps = get_mipmaps(GL.image)
     
 
         def compute_barycentric_coordinates(tri, x, y):
