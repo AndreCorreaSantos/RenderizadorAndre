@@ -125,7 +125,7 @@ class GL:
                     gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, color)
 
     @staticmethod
-    def triangleSet2D(vertices, colors, vertex_colors=None, texture_values=None, image=None):
+    def triangleSet2D(vertices, colors, vertex_colors=None, texture_values=None):
         """Function used to render TriangleSet2D with depth testing, barycentric interpolation, and texture mapping."""
 
         def compute_barycentric_coordinates(tri, x, y):
@@ -151,10 +151,15 @@ class GL:
 
         transparency = colors.get("transparency", 0.0)
 
+        triangle = 0
+        tex_index = 0 # Index for texture_values
         for i in range(0, len(vertices), 9):
             tri = vertices[i : i + 9]
+
             if len(tri) != 9:
                 continue
+            triangle += 1
+            
 
             xs = [tri[j] for j in range(0, len(tri), 3)]  # x coordinates
             ys = [tri[j] for j in range(1, len(tri), 3)]  # y coordinates
@@ -177,12 +182,16 @@ class GL:
                 c1 = np.array(tri_colors[0:3])
                 c2 = np.array(tri_colors[3:6])
                 c3 = np.array(tri_colors[6:9])
-
+            
             if texture_values is not None:
-                # Extract per-triangle texture coordinates
-                tri_tex_coords = texture_values[i // 3 * 6 : (i // 3 + 1) * 6]
+                tri_tex_coords = texture_values[tex_index : tex_index + 6]
+                tex_index += 6  # Increment texture index by 6 for the next triangle
+
                 if len(tri_tex_coords) != 6:
                     continue
+                
+                print("tri_tex_coords")
+                print(tri_tex_coords)
                 u1, v1 = tri_tex_coords[0], tri_tex_coords[1]
                 u2, v2 = tri_tex_coords[2], tri_tex_coords[3]
                 u3, v3 = tri_tex_coords[4], tri_tex_coords[5]
@@ -193,7 +202,7 @@ class GL:
             w1 = 1.0 / z1 if z1 != 0 else 0.0
             w2 = 1.0 / z2 if z2 != 0 else 0.0
             w3 = 1.0 / z3 if z3 != 0 else 0.0
-
+            
             # Iterating over the bounding box
             for x in range(super_box[0], super_box[1] + 1):
                 for y in range(super_box[2], super_box[3] + 1):
@@ -224,7 +233,9 @@ class GL:
                         if one_over_z == 0:
                             continue  # Avoid division by zero
 
-                        if texture_values is not None and image is not None:
+                        if texture_values is not None and GL.image is not None:
+                        # if True:
+                            # print("TRIANGLE" + str(triangle))
                             # Interpolate texture coordinates
                             u = (alpha * u1 * w1 + beta * u2 * w2 + gamma * u3 * w3) / one_over_z
                             v = (alpha * v1 * w1 + beta * v2 * w2 + gamma * v3 * w3) / one_over_z
@@ -234,7 +245,7 @@ class GL:
                             v = v % 1.0
 
                             # Map (u, v) to texture pixel coordinates
-                            texture_height, texture_width = image.shape[:2]
+                            texture_height, texture_width = GL.image.shape[:2]
                             tex_x = int(u * (texture_width - 1))
                             tex_y = int((1 - v) * (texture_height - 1))  # Flip v-axis if necessary
 
@@ -243,7 +254,7 @@ class GL:
                             tex_y = np.clip(tex_y, 0, texture_height - 1)
 
                             # Get the color from the texture image
-                            pixel_color = image[tex_y, tex_x, :3]  # Assuming RGB image
+                            pixel_color = GL.image[tex_y, tex_x, :3]  # Assuming RGB image
                             pixel_color = pixel_color.astype(np.uint8)
                             color = pixel_color
 
@@ -282,7 +293,7 @@ class GL:
                         super_colors = np.array([c1, c2, c3, c4]).mean(axis=0).astype(np.uint8)
                         gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, super_colors)
     @staticmethod
-    def triangleSet(point, colors,vertex_colors=None):
+    def triangleSet(point, colors,vertex_colors=None,texture_values=None):
         """Função usada para renderizar TriangleSet."""
         
         # Helper function to multiply matrices
@@ -338,7 +349,7 @@ class GL:
 
         # Call triangleSet2D with the transformed 2D vertices
 
-        GL.triangleSet2D(vertices, colors,vertex_colors)
+        GL.triangleSet2D(vertices, colors,vertex_colors,texture_values=texture_values)
 
 
     @staticmethod
@@ -474,7 +485,7 @@ class GL:
         GL.triangleSet(vertices,colors,vertex_colors)
 
     @staticmethod
-    def indexedTriangleStripSet(point, index, colors,vertex_colors = None,colorIndex = None):
+    def indexedTriangleStripSet(point, index, colors,vertex_colors = None,colorIndex = None,texCoord = None,texCoordIndex = None):
         """Função usada para renderizar IndexedTriangleStripSet."""
 
 
@@ -488,9 +499,14 @@ class GL:
             for u in range(3): 
                 indexed_vertex_colors.append(vertex_colors[coord + u])
 
+        def appendTex(vertex_tex_coord, indexed_vertex_tex_coord, idx):
+            coord = idx * 2
+            for u in range(2): 
+                indexed_vertex_tex_coord.append(vertex_tex_coord[coord + u])
 
         vertices = []
         indexed_vertex_colors = []
+        indexed_vertex_tex_coord = []
         i = 0
         while i < len(index) - 2:
             if index[i] == -1 or index[i + 1] == -1 or index[i + 2] == -1:
@@ -507,10 +523,26 @@ class GL:
                 appendColors(vertex_colors, indexed_vertex_colors, colorIndex[i + 1])
                 appendColors(vertex_colors, indexed_vertex_colors, colorIndex[i + 2])
 
-            i += 1 
+            if GL.image is not None:
+                appendTex(texCoord, indexed_vertex_tex_coord, texCoordIndex[i]) # TexCoord 1
+                appendTex(texCoord, indexed_vertex_tex_coord, texCoordIndex[i + 1]) # TexCoord 2
+                appendTex(texCoord, indexed_vertex_tex_coord, texCoordIndex[i + 2]) # TexCoord 3
+
+            i += 1
+
+        
 
 
-            GL.triangleSet(vertices, colors, indexed_vertex_colors)
+            # print("vertices")
+            # print(vertices)
+            # print(len(vertices)//3)
+            # print("indexed_vertex_tex_coord")
+            # print(indexed_vertex_tex_coord)
+            # print(len(indexed_vertex_tex_coord)//2)
+        # print("texCoord")
+        # print(texCoord)
+
+        GL.triangleSet(vertices, colors, indexed_vertex_colors,texture_values=indexed_vertex_tex_coord)
 
 
     @staticmethod
@@ -573,18 +605,26 @@ class GL:
 
         if current_texture:
             GL.image = gpu.GPU.load_texture(current_texture[0])
+
         
         GL.colorPerVertex = colorPerVertex
         if len(colorIndex) == 0:
             GL.colorPerVertex = False
         
         vertex_colors = color
+
         faces = splitFaces(coordIndex)
         stripIndices = generateStrips(faces)
+
+        texFaces = splitFaces(texCoordIndex)
+        texStripIndices = generateStrips(texFaces)
         
+        print("texFaces")
+        print(texFaces)
+        print("texStripIndices")
+        print(texStripIndices)
 
-
-        GL.indexedTriangleStripSet(coord, stripIndices, colors,vertex_colors, colorIndex)
+        GL.indexedTriangleStripSet(coord, stripIndices, colors,vertex_colors, colorIndex,texCoord,texStripIndices)
 
 
 
