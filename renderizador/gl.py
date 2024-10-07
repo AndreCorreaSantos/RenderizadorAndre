@@ -151,14 +151,16 @@ class GL:
 
         transparency = colors.get("transparency", 0.0)
 
-        triangle = 0
+
+
         tex_index = 0 # Index for texture_values
         for i in range(0, len(vertices), 9):
             tri = vertices[i : i + 9]
 
             if len(tri) != 9:
                 continue
-            triangle += 1
+
+            
             
 
             xs = [tri[j] for j in range(0, len(tri), 3)]  # x coordinates
@@ -182,8 +184,10 @@ class GL:
                 c1 = np.array(tri_colors[0:3])
                 c2 = np.array(tri_colors[3:6])
                 c3 = np.array(tri_colors[6:9])
+
+                
             
-            if texture_values is not None:
+            if texture_values is not None and GL.image is not None:
                 tri_tex_coords = texture_values[tex_index : tex_index + 6]
                 tex_index += 6  # Increment texture index by 6 for the next triangle
 
@@ -194,6 +198,7 @@ class GL:
                 u2, v2 = tri_tex_coords[2], tri_tex_coords[3]
                 u3, v3 = tri_tex_coords[4], tri_tex_coords[5]
 
+ 
             # Corresponding z-values at each vertex
             z1, z2, z3 = tri[2], tri[5], tri[8]
             # Compute 1/z for each vertex
