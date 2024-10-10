@@ -129,47 +129,10 @@ class GL:
     def triangleSet2D(vertices, colors, vertex_colors=None, texture_values=None):
         """Function used to render TriangleSet2D with depth testing, barycentric interpolation, and texture mapping."""
 
-        def get_level(dudx, dudy, dvdx, dvdy):
-            epsilon = 1e-6
-            l = max(np.sqrt(dudx**2 + dvdx**2), np.sqrt(dudy**2 + dvdy**2), epsilon)
-            level = int(np.log2(l))
-            level = max(0, level)
-            return level
-        
-        def get_mipmaps(texture): # returns a list of downsampled images to be used as mipmaps, REMEMBER TO REFACTOR THIS LATER IT STINKS
-            mipmap_levels = [texture]  
-            mip = texture.copy()
-            height = mip.shape[0]
-            width = mip.shape[1]
-            condition = height > 1 and width > 1
-            while condition:
-                new_height = max(1, height // 2)
-                new_width = max(1, width // 2)
-                blurred_image = np.zeros((new_height, new_width, mip.shape[2]), dtype=mip.dtype)
-                for y in range(new_height):
-                    for x in range(new_width):
-                        filter = mip[2 * y:2 * y + 2, 2 * x:2 * x + 2]
-                        blurred_image[y, x] = np.mean(filter, axis=(0, 1))
-                mipmap_levels.append(blurred_image)
-                mip = blurred_image
-                height = mip.shape[0]
-                width = mip.shape[1]
-                condition = height > 1 and width > 1
-            return mipmap_levels
         
         if texture_values is not None and GL.image is not None:
-            mipmaps = get_mipmaps(GL.image)
+            mipmaps = helper.get_mipmaps(GL.image)
     
-
-        def compute_barycentric_coordinates(tri, x, y):
-            x1, y1 = tri[0], tri[1]
-            x2, y2 = tri[3], tri[4]
-            x3, y3 = tri[6], tri[7]
-            d = ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 - y3))
-            alpha = ((y2 - y3)*(x - x3) + (x3 - x2)*(y - y3)) / d
-            beta = ((y3 - y1)*(x - x3) + (x1 - x3)*(y - y3)) / d
-            gamma = 1 - alpha - beta
-            return alpha, beta, gamma
 
         if len(vertices) < 9:
             if len(vertices) == 6:
@@ -248,7 +211,7 @@ class GL:
 
                     if (0 <= x < GL.width * 2) and (0 <= y < GL.height * 2):
                         
-                        bary_coords = compute_barycentric_coordinates(super_tri, x + 0.5, y + 0.5)
+                        bary_coords = helper.compute_barycentric_coordinates(super_tri, x + 0.5, y + 0.5)
                         if bary_coords is None:
                             continue
                         alpha, beta, gamma = bary_coords
@@ -280,11 +243,11 @@ class GL:
                             v = (alpha * v1 * w1 + beta * v2 * w2 + gamma * v3 * w3) / one_over_z
 
                             # Interpolate u and v at neighboring pixels (x+1, y) and (x, y+1) for mipmap level calculation
-                            a10, b10, g10 = compute_barycentric_coordinates(super_tri, x + 1.0, y)
+                            a10, b10, g10 = helper.compute_barycentric_coordinates(super_tri, x + 1.0, y)
                             u10 = (a10 * u1 * w1 + b10 * u2 * w2 + g10 * u3 * w3) / (a10 * w1 + b10 * w2 + g10 * w3)
                             v10 = (a10 * v1 * w1 + b10 * v2 * w2 + g10 * v3 * w3) / (a10 * w1 + b10 * w2 + g10 * w3)
 
-                            a01, b01, g01 = compute_barycentric_coordinates(super_tri, x, y + 1.0)
+                            a01, b01, g01 = helper.compute_barycentric_coordinates(super_tri, x, y + 1.0)
                             u01 = (a01 * u1 * w1 + b01 * u2 * w2 + g01 * u3 * w3) / (a01 * w1 + b01 * w2 + g01 * w3)
                             v01 = (a01 * v1 * w1 + b01 * v2 * w2 + g01 * v3 * w3) / (a01 * w1 + b01 * w2 + g01 * w3)
 
@@ -294,7 +257,7 @@ class GL:
                             dudy = scale_factor * (u01 - u)
                             dvdy = scale_factor * (v01 - v)
 
-                            level = get_level(dudx, dudy, dvdx, dvdy)
+                            level = helper.get_level(dudx, dudy, dvdx, dvdy)
 
                             # Select the appropriate mipmap level
                             mipmap = mipmaps[level]
@@ -325,6 +288,8 @@ class GL:
                             pixel_color = np.array([r, g, b])
                             pixel_color = np.clip(pixel_color, 0, 255).astype(np.uint8)
                             color = pixel_color
+                            # #setting to white for debug
+                            # color = np.array([255,255,255])
 
                         # Handle transparency blending
                         if transparency > 0:
@@ -588,18 +553,8 @@ class GL:
 
             i += 1
 
-        
-            # print("vertices")
-            # print(vertices)
-
-            # print("vertices")
-            # print(vertices)
-            # print(len(vertices)//3)
-            # print("indexed_vertex_tex_coord")
-            # print(indexed_vertex_tex_coord)
-            # print(len(indexed_vertex_tex_coord)//2)
-        # print("texCoord")
-        # print(texCoord)
+        print("vertices")
+        print(vertices)
 
         GL.triangleSet(vertices, colors, indexed_vertex_colors,texture_values=indexed_vertex_tex_coord)
 
@@ -617,7 +572,6 @@ class GL:
         current_texture,
     ):
         """Função usada para renderizar IndexedFaceSet com cores e texturas."""
-
 
 
         def splitFaces(indices):
@@ -650,22 +604,27 @@ class GL:
 
         
         GL.colorPerVertex = colorPerVertex
+        
         if len(colorIndex) == 0:
             GL.colorPerVertex = False
         
         vertex_colors = color
-
         faces = splitFaces(coordIndex)
         stripIndices = generateStrips(faces)
 
         texFaces = splitFaces(texCoordIndex)
         texStripIndices = generateStrips(texFaces)
         
-        print("texFaces")
-        print(texFaces)
-        print("texStripIndices")
-        print(texStripIndices)
+        # print("texFaces")
+        # print(texFaces)
+        # print("texStripIndices")
+        # # print(texStripIndices)
 
+        # print("vertices")
+        # print(coord)
+        # print("indices")
+        # print(coordIndex)
+        print("corinthians")
         GL.indexedTriangleStripSet(coord, stripIndices, colors,vertex_colors, colorIndex,texCoord,texStripIndices)
 
 
@@ -701,27 +660,14 @@ class GL:
         # raio da esfera que está sendo criada. Para desenha essa esfera você vai
         # precisar tesselar ela em triângulos, para isso encontre os vértices e defina
         # os triângulos.
-
-        # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print(
-            "Sphere : radius = {0}".format(radius)
-        )  # imprime no terminal o raio da esfera
-        print("Sphere : colors = {0}".format(colors))  # imprime no terminal as cores
-
-        sectorCount = 4
-        stackCount = 4
-
-        indices = helper.generateMeshIndices(sectorCount, stackCount)
-        vertices = helper.generateSphereVertices(radius,sectorCount,stackCount)
-        # print("Sphere : indices = {0}".format(indices))  # imprime no terminal os índices
-        # print("Sphere : vertices = {0}".format(vertices))  # imprime no terminal os vértices
-
+        # Número de divisões de latitude e longitude
+        sectorCount = 36
+        stackCount = 18
+        points = helper.generateSphereVertices(radius, sectorCount, stackCount)
+        coordIndex = helper.generateMeshIndices(sectorCount, stackCount)
         
-        # print("LEN")
-        # print(len(vertices))
-        # print(len(indices))
+        GL.indexedFaceSet(points, coordIndex, False, [], [], [], [], colors, [])
 
-        GL.indexedTriangleStripSet(vertices,indices,colors)
 
     @staticmethod
     def cone(bottomRadius, height, colors):
@@ -738,6 +684,7 @@ class GL:
         print("Cone : bottomRadius = {0}".format(bottomRadius)) # imprime no terminal o raio da base do cone
         print("Cone : height = {0}".format(height)) # imprime no terminal a altura do cone
         print("Cone : colors = {0}".format(colors)) # imprime no terminal as cores
+
 
     @staticmethod
     def cylinder(radius, height, colors):
