@@ -589,7 +589,8 @@ class GL:
             i += 1
 
         
-
+            # print("vertices")
+            # print(vertices)
 
             # print("vertices")
             # print(vertices)
@@ -728,9 +729,14 @@ class GL:
         stackCount = 4
 
         indices = helper.generateMeshIndices(sectorCount, stackCount)
-        vertices = helper.generateSphereVertices(radius,math.pi,sectorCount,stackCount)
-        print("Sphere : indices = {0}".format(indices))  # imprime no terminal os índices
-        print("Sphere : vertices = {0}".format(vertices))  # imprime no terminal os vértices
+        vertices = helper.generateSphereVertices(radius,sectorCount,stackCount)
+        # print("Sphere : indices = {0}".format(indices))  # imprime no terminal os índices
+        # print("Sphere : vertices = {0}".format(vertices))  # imprime no terminal os vértices
+
+        
+        # print("LEN")
+        # print(len(vertices))
+        # print(len(indices))
 
         GL.indexedTriangleStripSet(vertices,indices,colors)
 
