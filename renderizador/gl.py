@@ -15,6 +15,7 @@ import time  # Para operações com tempo
 import gpu  # Simula os recursos de uma GPU
 import math  # Funções matemáticas
 import numpy as np  # Biblioteca do Numpy
+import helper
 
 
 class GL:
@@ -722,6 +723,18 @@ class GL:
             "Sphere : radius = {0}".format(radius)
         )  # imprime no terminal o raio da esfera
         print("Sphere : colors = {0}".format(colors))  # imprime no terminal as cores
+
+        sectorCount = 4
+        stackCount = 4
+
+        indices = helper.generateMeshIndices(sectorCount, stackCount)
+        vertices = helper.generateSphereVertices(radius,math.pi,sectorCount,stackCount)
+        print("Sphere : indices = {0}".format(indices))  # imprime no terminal os índices
+        print("Sphere : vertices = {0}".format(vertices))  # imprime no terminal os vértices
+
+        GL.indexedTriangleStripSet(vertices,indices,colors)
+
+
 
     @staticmethod
     def navigationInfo(headlight):
