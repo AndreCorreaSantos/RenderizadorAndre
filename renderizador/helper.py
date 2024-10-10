@@ -33,6 +33,16 @@ def generateMeshIndices(sectorCount, stackCount):
                 indices.extend([-1])
     return indices
 
+def generateCircleVertices(center,radius, sectorCount):
+    vertices = []
+    sectorStep = 2 * math.pi / sectorCount
+    for i in range(sectorCount):
+        sectorAngle = i * sectorStep
+        x = center[0] + radius * math.cos(sectorAngle)
+        z = center[2] + radius * math.sin(sectorAngle)
+        vertices.extend([x, center[1], z])
+    return vertices
+
 
 def get_level(dudx, dudy, dvdx, dvdy):
     epsilon = 1e-6

@@ -659,19 +659,8 @@ class GL:
             [4, 7, 6, 5]
         ]
 
-        # triangles = [
-        #     [0, 1, 3],
-        #     [1, 2, 3],
-        #     [0, 4, 1],
-        #     [4, 5, 1],
-        #     [1, 5, 6],
-        #     [2, 6, 3],
-        #     [6, 7, 3],
-        #     [3, 7, 0],
-        #     [7, 4, 0],
-        #     [4, 7, 5],
-        #     [7, 6, 5]
-        # ]
+
+        size = [size[0] / 2, size[1] / 2, size[2] / 2]
         scaled_vertices = [[v[0] * size[0], v[1] * size[1], v[2] * size[2]] for v in vertices]
         indices = []
         for face in faces:
@@ -719,6 +708,25 @@ class GL:
         print("Cone : bottomRadius = {0}".format(bottomRadius)) # imprime no terminal o raio da base do cone
         print("Cone : height = {0}".format(height)) # imprime no terminal a altura do cone
         print("Cone : colors = {0}".format(colors)) # imprime no terminal as cores
+
+        apex = [0, height/2, 0]
+        center = [0, -height/2, 0]
+
+        # Base
+        sectorCount = 30
+        base = helper.generateCircleVertices(center,bottomRadius, 40)
+        
+        vertices = []
+        vertices.extend(apex)
+        vertices.extend(base)
+
+        # Faces
+        indices = []
+
+        for i in range(1, len(vertices)//3 - 1):
+            indices.extend([0,i,i+1,-1])
+        
+        GL.indexedFaceSet(vertices, indices, False, [], [], [], [], colors, [])
 
 
     @staticmethod
