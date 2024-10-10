@@ -553,8 +553,8 @@ class GL:
 
             i += 1
 
-        print("vertices")
-        print(vertices)
+        # print("vertices")
+        # print(vertices)
 
         GL.triangleSet(vertices, colors, indexed_vertex_colors,texture_values=indexed_vertex_tex_coord)
 
@@ -612,19 +612,15 @@ class GL:
         faces = splitFaces(coordIndex)
         stripIndices = generateStrips(faces)
 
+
         texFaces = splitFaces(texCoordIndex)
         texStripIndices = generateStrips(texFaces)
-        
-        # print("texFaces")
-        # print(texFaces)
-        # print("texStripIndices")
-        # # print(texStripIndices)
 
-        # print("vertices")
+        # print("vertices1")
         # print(coord)
         # print("indices")
-        # print(coordIndex)
-        print("corinthians")
+        # print(stripIndices)
+
         GL.indexedTriangleStripSet(coord, stripIndices, colors,vertex_colors, colorIndex,texCoord,texStripIndices)
 
 
@@ -643,13 +639,52 @@ class GL:
         # e Z, respectivamente, e cada valor do tamanho deve ser maior que zero. Para desenha
         # essa caixa você vai provavelmente querer tesselar ela em triângulos, para isso
         # encontre os vértices e defina os triângulos.
+        vertices = [
+            (-1, 1, -1),
+            (-1,  1, 1),
+            (1,  1, 1),
+            (1, 1, -1),
+            (-1, -1,  -1),
+            (-1,  -1,  1),
+            (1,  -1,  1),
+            (1, -1,  -1)
+        ]
 
-        # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print("Box : size = {0}".format(size)) # imprime no terminal pontos
-        print("Box : colors = {0}".format(colors)) # imprime no terminal as cores
+        faces = [
+            [0, 1, 2, 3],
+            [0, 4, 5, 1],
+            [1, 5, 6, 2],
+            [2, 6, 7, 3],
+            [3, 7, 4, 0],
+            [4, 7, 6, 5]
+        ]
 
-        # Exemplo de desenho de um pixel branco na coordenada 10, 10
-        gpu.GPU.draw_pixel([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
+        # triangles = [
+        #     [0, 1, 3],
+        #     [1, 2, 3],
+        #     [0, 4, 1],
+        #     [4, 5, 1],
+        #     [1, 5, 6],
+        #     [2, 6, 3],
+        #     [6, 7, 3],
+        #     [3, 7, 0],
+        #     [7, 4, 0],
+        #     [4, 7, 5],
+        #     [7, 6, 5]
+        # ]
+        scaled_vertices = [[v[0] * size[0], v[1] * size[1], v[2] * size[2]] for v in vertices]
+        indices = []
+        for face in faces:
+            indices.extend(face)
+            indices.extend([-1])
+
+        out_vertices = []
+        for vertex in scaled_vertices:
+            out_vertices.extend(vertex)
+        
+        GL.indexedFaceSet(out_vertices, indices, False, [], [], [], [], colors, [])
+
+        
 
     @staticmethod
     def sphere(radius, colors):
