@@ -729,21 +729,40 @@ class GL:
         GL.indexedFaceSet(vertices, indices, False, [], [], [], [], colors, [])
 
 
-    @staticmethod
     def cylinder(radius, height, colors):
-        """Função usada para renderizar Cilindros."""
-        # https://www.web3d.org/specifications/X3Dv4/ISO-IEC19775-1v4-IS/Part01/components/geometry3D.html#Cylinder
-        # A função cylinder é usada para desenhar cilindros na cena. O cilindro é centrado no
-        # (0, 0, 0) no sistema de coordenadas local. O argumento radius especifica o
-        # raio da base do cilindro e o argumento height especifica a altura do cilindro.
-        # O cilindro é alinhado com o eixo Y local. O cilindro é fechado por padrão em ambas as extremidades.
-        # Para desenha esse cilindro você vai precisar tesselar ele em triângulos, para isso
-        # encontre os vértices e defina os triângulos.
+        """Function used to render cylinders."""
+        topCenter = [0, height / 2, 0]
+        bottomCenter = [0, -height / 2, 0]
+        sectorCount = 80  
+   
+        base = helper.generateCircleVertices(bottomCenter, radius, sectorCount)
+        top = helper.generateCircleVertices(topCenter, radius, sectorCount)
 
-        # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print("Cylinder : radius = {0}".format(radius)) # imprime no terminal o raio do cilindro
-        print("Cylinder : height = {0}".format(height)) # imprime no terminal a altura do cilindro
-        print("Cylinder : colors = {0}".format(colors)) # imprime no terminal as cores
+        vertices = base + top
+        vertices.extend(bottomCenter) 
+        vertices.extend(topCenter)     
+
+        bottomCenterIndex = sectorCount * 2
+        topCenterIndex = sectorCount * 2 + 1
+
+        faces = []
+
+
+        for i in range(sectorCount):
+            next_i = (i + 1) % sectorCount
+            faces.extend([i, next_i, sectorCount + next_i, sectorCount + i, -1])
+
+        # Bottom cap faces
+        for i in range(sectorCount):
+            next_i = (i + 1) % sectorCount
+            faces.extend([i, next_i, bottomCenterIndex, -1])
+
+        # Top cap faces
+        for i in range(sectorCount):
+            next_i = (i + 1) % sectorCount
+            faces.extend([sectorCount + next_i, sectorCount + i, topCenterIndex, -1])
+
+        GL.indexedFaceSet(vertices, faces, False, [], [], [], [], colors, [])
 
 
 
