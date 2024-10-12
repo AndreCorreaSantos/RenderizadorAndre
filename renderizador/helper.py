@@ -33,6 +33,15 @@ def generateMeshIndices(sectorCount, stackCount):
                 indices.extend([-1])
     return indices
 
+def generateSphereNormals(center,vertices):
+    normals = []
+    for i in range(0,len(vertices)-1,3):
+        v = vertices[i:i+3]
+        #checar o calculo dessas normais depois
+        n = (v-center)/np.linalg.norm(v-center)
+        normals.extend(n)
+    return normals
+
 def generateCircleVertices(center,radius, sectorCount):
     vertices = []
     sectorStep = 2 * math.pi / sectorCount

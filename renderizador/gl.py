@@ -316,7 +316,7 @@ class GL:
                         super_colors = np.array([c1, c2, c3, c4]).mean(axis=0).astype(np.uint8)
                         gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, super_colors)
     @staticmethod
-    def triangleSet(point, colors,vertex_colors=None,texture_values=None):
+    def triangleSet(point, colors,vertex_colors=None,texture_values=None,normals=None):
         """Função usada para renderizar TriangleSet."""
         
         # Helper function to multiply matrices
@@ -508,7 +508,7 @@ class GL:
         GL.triangleSet(vertices,colors,vertex_colors)
 
     @staticmethod
-    def indexedTriangleStripSet(point, index, colors,vertex_colors = None,colorIndex = None,texCoord = None,texCoordIndex = None):
+    def indexedTriangleStripSet(point, index, colors,vertex_colors = None,colorIndex = None,texCoord = None,texCoordIndex = None,normals=None):
         """Função usada para renderizar IndexedTriangleStripSet."""
 
 
@@ -530,6 +530,7 @@ class GL:
         vertices = []
         indexed_vertex_colors = []
         indexed_vertex_tex_coord = []
+        indexed_normals = []
         i = 0
         while i < len(index) - 2:
             if index[i] == -1 or index[i + 1] == -1 or index[i + 2] == -1:
@@ -540,6 +541,13 @@ class GL:
             appendVertices(point, vertices, index[i])     # Vertex 1
             appendVertices(point, vertices, index[i + 1]) # Vertex 2
             appendVertices(point, vertices, index[i + 2]) # Vertex 3
+
+            if normals is not None:
+                appendVertices(normals,indexed_normals,index[i])
+                appendVertices(normals,indexed_normals,index[i+1])
+                appendVertices(normals,indexed_normals,index[i+2])
+                
+
 
             if GL.colorPerVertex:
                 appendColors(vertex_colors, indexed_vertex_colors, colorIndex[i])
@@ -553,10 +561,10 @@ class GL:
 
             i += 1
 
-        # print("vertices")
-        # print(vertices)
 
-        GL.triangleSet(vertices, colors, indexed_vertex_colors,texture_values=indexed_vertex_tex_coord)
+        
+
+        GL.triangleSet(vertices, colors, indexed_vertex_colors,texture_values=indexed_vertex_tex_coord,normals)
 
 
     @staticmethod
@@ -570,6 +578,7 @@ class GL:
         texCoordIndex,
         colors,
         current_texture,
+        normals=None
     ):
         """Função usada para renderizar IndexedFaceSet com cores e texturas."""
 
@@ -616,12 +625,7 @@ class GL:
         texFaces = splitFaces(texCoordIndex)
         texStripIndices = generateStrips(texFaces)
 
-        # print("vertices1")
-        # print(coord)
-        # print("indices")
-        # print(stripIndices)
-
-        GL.indexedTriangleStripSet(coord, stripIndices, colors,vertex_colors, colorIndex,texCoord,texStripIndices)
+        GL.indexedTriangleStripSet(coord, stripIndices, colors,vertex_colors, colorIndex,texCoord,texStripIndices,normals)
 
 
 
@@ -689,8 +693,9 @@ class GL:
         stackCount = 18
         points = helper.generateSphereVertices(radius, sectorCount, stackCount)
         coordIndex = helper.generateMeshIndices(sectorCount, stackCount)
-        
-        GL.indexedFaceSet(points, coordIndex, False, [], [], [], [], colors, [])
+        center = np.array([0.0,0.0,0.0])
+        normals = helper.generateSphereNormals(center,points)
+        GL.indexedFaceSet(points, coordIndex, False, [], [], [], [], colors, [],normals)
 
 
     @staticmethod
@@ -728,7 +733,7 @@ class GL:
         
         GL.indexedFaceSet(vertices, indices, False, [], [], [], [], colors, [])
 
-
+    @staticmethod
     def cylinder(radius, height, colors):
         """Function used to render cylinders."""
         topCenter = [0, height / 2, 0]
