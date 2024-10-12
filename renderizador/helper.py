@@ -42,6 +42,16 @@ def generateSphereNormals(center,vertices):
         normals.extend(n)
     return normals
 
+def averageTriNormals(normals):
+
+    x_mean = np.array([normals[0][0],normals[1][0],normals[2][0]]).mean()
+    y_mean = np.array([normals[0][1],normals[1][1],normals[2][1]]).mean()
+    z_mean = np.array([normals[0][2],normals[1][2],normals[2][2]]).mean()
+
+    avg_n = np.array([x_mean,y_mean,z_mean])
+    return avg_n
+
+
 def generateCircleVertices(center,radius, sectorCount):
     vertices = []
     sectorStep = 2 * math.pi / sectorCount

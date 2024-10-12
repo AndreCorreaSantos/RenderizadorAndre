@@ -132,7 +132,7 @@ class GL:
     # interpolar a normal, nao sei como --> por enquanto pegar a média
     # 
     @staticmethod
-    def triangleSet2D(vertices, colors, vertex_colors=None, texture_values=None,tri_pos=None,tri_normals=None):
+    def triangleSet2D(vertices, colors, vertex_colors=None, texture_values=None,tri_pos=None,tri_normals=None,world_values=None):
         """Function used to render TriangleSet2D with depth testing, barycentric interpolation, and texture mapping."""
 
         
@@ -165,6 +165,15 @@ class GL:
         for i in range(0, len(vertices), 9):
             tri = vertices[i : i + 9]
 
+            if world_values is not None:
+                world_points = world_values[0]
+                world_normals = world_values[1]
+            
+                index = i // 3
+                triw_points = world_points[index:index+3]
+                triw_normals = np.array(world_normals[index:index+3])
+
+
             if len(tri) != 9:
                 continue
 
@@ -183,6 +192,7 @@ class GL:
 
             if GL.colorPerVertex:
                 # Extract per-triangle colors
+                
                 tri_colors = vertex_colors[i : i + 9]
                 if len(tri_colors) != 9:
                     continue
@@ -283,6 +293,11 @@ class GL:
                             color = mipmap[v][u][0:3]
 
 
+                        elif world_values is not None:
+                            avg_normal = helper.averageTriNormals(triw_normals)
+                            color = avg_normal*255
+                        
+
 
 
                         elif GL.colorPerVertex:
@@ -373,6 +388,7 @@ class GL:
         xs = [point[i] for i in range(0, len(point), 3)]
         ys = [point[i] for i in range(1, len(point), 3)]
         zs = [point[i] for i in range(2, len(point), 3)]
+        world_values = None
 
         if normals is not None:
             #packaging normals coordinates
@@ -384,32 +400,36 @@ class GL:
             
             world_points = []
             world_normals = []
-            # print(len(xs))
-            # print(3*len(ns))
-            # for i in range(0,len(xs)):
-            #     # point in world space
-            #     obj_to_world = multiply_mats(GL.transform_stack)
-            #     world_p = obj_to_world @ np.array([xs[i],ys[i],zs[i],1.0])
+            for i in range(0,len(xs)):
+                # point in world space
+                obj_to_world = multiply_mats(GL.transform_stack)
+                world_p = obj_to_world @ np.array([xs[i],ys[i],zs[i],1.0])
 
-            #     # normal in world space
-            #     n_to_world = multiply_mats(GL.normal_transform_stack)
-            #     n = normals[i:i+3]
-            #     n.append(1.0)
-            #     print("n")
-            #     print(n)
-            #     world_n = n_to_world @ np.array(n)
-
-            #     print("world_p")
-            #     print(world_p)
-            #     print("world_n")
-            #     print(world_n)
+                # normal in world space
+                n_to_world = multiply_mats(GL.normal_transform_stack)
+                n = ns[i]
+                n.append(1.0)
+                # world_n = n_to_world @ np.array(n)
+                world_n = np.array(n)
 
 
+                # throwing away homogenous coordinates
+                world_p = np.array(list(np.array(world_p).flatten())[0:3])
+                world_n = np.array(list(np.array(world_n).flatten())[0:3])
+
+                world_points.append(world_p)
+                world_normals.append(world_n)
+
+            
+            world_values = [world_points,world_normals]
+
+
+       
         projected_vertices = transform_points(point, min(xs), min(ys), min(zs), max(zs))
 
         # Call triangleSet2D with the transformed 2D vertices
 
-        GL.triangleSet2D(projected_vertices, colors,vertex_colors,texture_values=texture_values)
+        GL.triangleSet2D(projected_vertices, colors,vertex_colors,texture_values=texture_values,world_values=world_values)
 
 
     @staticmethod
