@@ -409,8 +409,8 @@ class GL:
                 n_to_world = multiply_mats(GL.normal_transform_stack)
                 n = ns[i]
                 n.append(1.0)
-                # world_n = n_to_world @ np.array(n)
                 world_n = np.array(n)
+                # world_n = obj_to_world @ np.array(n)
 
 
                 # throwing away homogenous coordinates
