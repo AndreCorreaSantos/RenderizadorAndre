@@ -24,6 +24,7 @@ class GL:
     perspective_matrix = np.mat([])
     look_at = np.mat([])
     transform_stack = []
+    normal_transform_stack = []
     vertex_colors = []
     vertex_tex_coord = []
     image = None
@@ -373,11 +374,42 @@ class GL:
         ys = [point[i] for i in range(1, len(point), 3)]
         zs = [point[i] for i in range(2, len(point), 3)]
 
-        vertices = transform_points(point, min(xs), min(ys), min(zs), max(zs))
+        if normals is not None:
+            #packaging normals coordinates
+
+            ns = [] # contains xyz for normal
+            for i in range(0,len(normals),3):
+                n = normals[i:i+3]
+                ns.append(n)
+            
+            world_points = []
+            world_normals = []
+            # print(len(xs))
+            # print(3*len(ns))
+            # for i in range(0,len(xs)):
+            #     # point in world space
+            #     obj_to_world = multiply_mats(GL.transform_stack)
+            #     world_p = obj_to_world @ np.array([xs[i],ys[i],zs[i],1.0])
+
+            #     # normal in world space
+            #     n_to_world = multiply_mats(GL.normal_transform_stack)
+            #     n = normals[i:i+3]
+            #     n.append(1.0)
+            #     print("n")
+            #     print(n)
+            #     world_n = n_to_world @ np.array(n)
+
+            #     print("world_p")
+            #     print(world_p)
+            #     print("world_n")
+            #     print(world_n)
+
+
+        projected_vertices = transform_points(point, min(xs), min(ys), min(zs), max(zs))
 
         # Call triangleSet2D with the transformed 2D vertices
 
-        GL.triangleSet2D(vertices, colors,vertex_colors,texture_values=texture_values)
+        GL.triangleSet2D(projected_vertices, colors,vertex_colors,texture_values=texture_values)
 
 
     @staticmethod
@@ -488,6 +520,8 @@ class GL:
         object_to_world_m = translation_m  @ rotation_m @ scale_m
         GL.transform_stack.append(object_to_world_m)
 
+        GL.normal_transform_stack.append(rotation_m)
+
 
     @staticmethod
     def transform_out():
@@ -536,6 +570,8 @@ class GL:
         indexed_vertex_colors = []
         indexed_vertex_tex_coord = []
         indexed_normals = []
+        
+        
         i = 0
         while i < len(index) - 2:
             if index[i] == -1 or index[i + 1] == -1 or index[i + 2] == -1:
@@ -566,7 +602,9 @@ class GL:
 
             i += 1
 
-
+        
+        if normals is not None:
+            normals = indexed_normals
         
 
         GL.triangleSet(vertices, colors, indexed_vertex_colors,texture_values=indexed_vertex_tex_coord,normals=normals)
