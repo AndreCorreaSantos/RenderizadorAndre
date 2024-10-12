@@ -125,8 +125,13 @@ class GL:
 
                     gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, color)
 
+
+    # caso normais, para um dado pixel projetado 2D, pegar os valores 3D do pixel na superficie
+    # os dados 3D do pixel, posicao deve sofrer rotacao e translacao, normal deve receber rotacao --> quais transformações eu aplico nas normais??
+    # interpolar a normal, nao sei como --> por enquanto pegar a média
+    # 
     @staticmethod
-    def triangleSet2D(vertices, colors, vertex_colors=None, texture_values=None):
+    def triangleSet2D(vertices, colors, vertex_colors=None, texture_values=None,tri_pos=None,tri_normals=None):
         """Function used to render TriangleSet2D with depth testing, barycentric interpolation, and texture mapping."""
 
         
@@ -564,7 +569,7 @@ class GL:
 
         
 
-        GL.triangleSet(vertices, colors, indexed_vertex_colors,texture_values=indexed_vertex_tex_coord,normals)
+        GL.triangleSet(vertices, colors, indexed_vertex_colors,texture_values=indexed_vertex_tex_coord,normals=normals)
 
 
     @staticmethod

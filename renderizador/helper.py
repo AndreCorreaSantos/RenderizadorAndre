@@ -71,6 +71,7 @@ def compute_barycentric_coordinates(tri, x, y):
     gamma = 1 - alpha - beta
     return alpha, beta, gamma
 
+
 def get_mipmaps(texture): # returns a list of downsampled images to be used as mipmaps, REMEMBER TO REFACTOR THIS LATER IT STINKS
     mipmap_levels = [texture]  
     mip = texture.copy()
