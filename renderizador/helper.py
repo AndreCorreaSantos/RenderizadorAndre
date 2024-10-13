@@ -33,7 +33,7 @@ def generateMeshIndices(sectorCount, stackCount):
                 indices.extend([-1])
     return indices
 
-def generateSphereNormals(center,vertices):
+def generateSphereNormals(center,vertices): # can also be used for spheres
     normals = []
     for i in range(0,len(vertices)-1,3):
         v = vertices[i:i+3]

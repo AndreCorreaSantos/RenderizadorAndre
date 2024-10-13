@@ -737,8 +737,12 @@ class GL:
         out_vertices = []
         for vertex in scaled_vertices:
             out_vertices.extend(vertex)
+
+        center = np.array([0.0,0.0,0.0])
         
-        GL.indexedFaceSet(out_vertices, indices, False, [], [], [], [], colors, [])
+        normals = helper.generateSphereNormals(center,vertices=out_vertices)
+        
+        GL.indexedFaceSet(out_vertices, indices, False, [], [], [], [], colors, [],normals=normals)
 
         
 
