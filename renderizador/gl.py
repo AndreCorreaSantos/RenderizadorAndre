@@ -29,6 +29,7 @@ class GL:
     vertex_tex_coord = []
     image = None
     colorPerVertex = False
+    normal = False
     
 
     width = 800  # largura da tela
@@ -132,7 +133,7 @@ class GL:
     # interpolar a normal, nao sei como --> por enquanto pegar a média
     # 
     @staticmethod
-    def triangleSet2D(vertices, colors, vertex_colors=None, texture_values=None,tri_pos=None,tri_normals=None,world_values=None):
+    def triangleSet2D(vertices, colors, vertex_colors=None, texture_values=None,world_points=None):
         """Function used to render TriangleSet2D with depth testing, barycentric interpolation, and texture mapping."""
 
         
@@ -159,19 +160,21 @@ class GL:
 
         transparency = colors.get("transparency", 0.0)
 
-
+        # print("shapes")
+        # print(len(world_points))
+        # print(len(vertices)//3)
 
         tex_index = 0 # Index for texture_values
         for i in range(0, len(vertices), 9):
             tri = vertices[i : i + 9]
 
-            if world_values is not None:
-                world_points = world_values[0]
-                world_normals = world_values[1]
+            if GL.normal:
             
                 index = i // 3
                 triw_points = world_points[index:index+3]
-                triw_normals = np.array(world_normals[index:index+3])
+                print("points")
+                print(triw_points   )
+                triw_normals = helper.calculateNormals(triw_points)
 
 
             if len(tri) != 9:
@@ -221,6 +224,8 @@ class GL:
             w2 = 1.0 / z2 if z2 != 0 else 0.0
             w3 = 1.0 / z3 if z3 != 0 else 0.0
             
+            pixel_normal = None
+            
             # Iterating over the bounding box
             for x in range(super_box[0], super_box[1] + 1):
                 for y in range(super_box[2], super_box[3] + 1):
@@ -238,6 +243,13 @@ class GL:
 
                         # Interpolate z-value
                         z = alpha * z1 + beta * z2 + gamma * z3
+
+                        if GL.normal:
+                            normal = helper.averageTriNormals(triw_normals)
+                            pixel_normal = normal
+                            # pixel_normal = helper.interpolateNormal(bary_coords,triw_normals)
+                            # pixel_normal = helper.averageTriNormals(triw_normals)
+                            # print(pixel_normal)
 
                         if transparency == 0:
                             # Opaque pixel
@@ -293,9 +305,8 @@ class GL:
                             color = mipmap[v][u][0:3]
 
 
-                        elif world_values is not None:
-                            avg_normal = helper.averageTriNormals(triw_normals)
-                            color = avg_normal*255
+                        elif pixel_normal is not None:
+                            color = pixel_normal*255
                         
 
 
@@ -324,6 +335,7 @@ class GL:
                             GL.super_buffer[x][y] = blended_color
                         else:
                             # No transparency, overwrite the color
+                            # GL.super_buffer[x][y] = color
                             GL.super_buffer[x][y] = color
 
             # Downsample and draw pixels
@@ -337,7 +349,7 @@ class GL:
                         super_colors = np.array([c1, c2, c3, c4]).mean(axis=0).astype(np.uint8)
                         gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, super_colors)
     @staticmethod
-    def triangleSet(point, colors,vertex_colors=None,texture_values=None,normals=None):
+    def triangleSet(point, colors,vertex_colors=None,texture_values=None):
         """Função usada para renderizar TriangleSet."""
         
         # Helper function to multiply matrices
@@ -360,6 +372,7 @@ class GL:
                 [0.0, 0.0, 0.0, 1.0]
             ])
             transformed_points = []
+            world_points = []
             for i in range(0, len(points), 3):
                 p = points[i:i + 3]
                 p.append(1.0)  # homogeneous coordinate
@@ -367,6 +380,11 @@ class GL:
 
                 # Apply all transformation matrices
                 transform_mat_res = multiply_mats(GL.transform_stack)
+                
+                world_point = np.array(transform_mat_res @ p).flatten()
+
+                world_points.append(world_point[0:3])
+
                 look_at_p = GL.look_at @ transform_mat_res @ p
                 z = np.array(look_at_p).flatten()[2]
 
@@ -382,54 +400,18 @@ class GL:
                 transformed_points.append(p[1])
                 transformed_points.append(z)
 
-            return transformed_points
+            return transformed_points,world_points
 
         # Transform the 3D points to 2D
         xs = [point[i] for i in range(0, len(point), 3)]
         ys = [point[i] for i in range(1, len(point), 3)]
         zs = [point[i] for i in range(2, len(point), 3)]
-        world_values = None
-
-        if normals is not None:
-            #packaging normals coordinates
-
-            ns = [] # contains xyz for normal
-            for i in range(0,len(normals),3):
-                n = normals[i:i+3]
-                ns.append(n)
-            
-            world_points = []
-            world_normals = []
-            for i in range(0,len(xs)):
-                # point in world space
-                obj_to_world = multiply_mats(GL.transform_stack)
-                world_p = obj_to_world @ np.array([xs[i],ys[i],zs[i],1.0])
-
-                # normal in world space
-                n_to_world = multiply_mats(GL.normal_transform_stack)
-                n = ns[i]
-                n.append(1.0)
-                world_n = np.array(n)
-                # world_n = obj_to_world @ np.array(n)
-
-
-                # throwing away homogenous coordinates
-                world_p = np.array(list(np.array(world_p).flatten())[0:3])
-                world_n = np.array(list(np.array(world_n).flatten())[0:3])
-
-                world_points.append(world_p)
-                world_normals.append(world_n)
-
-            
-            world_values = [world_points,world_normals]
-
-
        
-        projected_vertices = transform_points(point, min(xs), min(ys), min(zs), max(zs))
+        projected_vertices,world_points = transform_points(point, min(xs), min(ys), min(zs), max(zs))
 
         # Call triangleSet2D with the transformed 2D vertices
 
-        GL.triangleSet2D(projected_vertices, colors,vertex_colors,texture_values=texture_values,world_values=world_values)
+        GL.triangleSet2D(projected_vertices, colors,vertex_colors,texture_values=texture_values,world_points=world_points)
 
 
     @staticmethod
@@ -589,7 +571,6 @@ class GL:
         vertices = []
         indexed_vertex_colors = []
         indexed_vertex_tex_coord = []
-        indexed_normals = []
         
         
         i = 0
@@ -602,12 +583,7 @@ class GL:
             appendVertices(point, vertices, index[i])     # Vertex 1
             appendVertices(point, vertices, index[i + 1]) # Vertex 2
             appendVertices(point, vertices, index[i + 2]) # Vertex 3
-
-            if normals is not None:
-                appendVertices(normals,indexed_normals,index[i])
-                appendVertices(normals,indexed_normals,index[i+1])
-                appendVertices(normals,indexed_normals,index[i+2])
-                
+            
 
 
             if GL.colorPerVertex:
@@ -622,12 +598,8 @@ class GL:
 
             i += 1
 
-        
-        if normals is not None:
-            normals = indexed_normals
-        
 
-        GL.triangleSet(vertices, colors, indexed_vertex_colors,texture_values=indexed_vertex_tex_coord,normals=normals)
+        GL.triangleSet(vertices, colors, indexed_vertex_colors,texture_values=indexed_vertex_tex_coord)
 
 
     @staticmethod
@@ -641,7 +613,6 @@ class GL:
         texCoordIndex,
         colors,
         current_texture,
-        normals=None
     ):
         """Função usada para renderizar IndexedFaceSet com cores e texturas."""
 
@@ -688,7 +659,7 @@ class GL:
         texFaces = splitFaces(texCoordIndex)
         texStripIndices = generateStrips(texFaces)
 
-        GL.indexedTriangleStripSet(coord, stripIndices, colors,vertex_colors, colorIndex,texCoord,texStripIndices,normals)
+        GL.indexedTriangleStripSet(coord, stripIndices, colors,vertex_colors, colorIndex,texCoord,texStripIndices)
 
 
 
@@ -738,11 +709,9 @@ class GL:
         for vertex in scaled_vertices:
             out_vertices.extend(vertex)
 
-        center = np.array([0.0,0.0,0.0])
+        GL.normal = True
         
-        normals = helper.generateSphereNormals(center,vertices=out_vertices)
-        
-        GL.indexedFaceSet(out_vertices, indices, False, [], [], [], [], colors, [],normals=normals)
+        GL.indexedFaceSet(out_vertices, indices, False, [], [], [], [], colors, [])
 
         
 
@@ -760,9 +729,10 @@ class GL:
         stackCount = 18
         points = helper.generateSphereVertices(radius, sectorCount, stackCount)
         coordIndex = helper.generateMeshIndices(sectorCount, stackCount)
-        center = np.array([0.0,0.0,0.0])
-        normals = helper.generateSphereNormals(center,points)
-        GL.indexedFaceSet(points, coordIndex, False, [], [], [], [], colors, [],normals)
+        # normals = []
+
+        GL.normal = True
+        GL.indexedFaceSet(points, coordIndex, False, [], [], [], [], colors, [])
 
 
     @staticmethod

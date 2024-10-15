@@ -42,6 +42,7 @@ def generateSphereNormals(center,vertices): # can also be used for spheres
         normals.extend(n)
     return normals
 
+
 def averageTriNormals(normals):
 
     x_mean = np.array([normals[0][0],normals[1][0],normals[2][0]]).mean()
@@ -49,7 +50,64 @@ def averageTriNormals(normals):
     z_mean = np.array([normals[0][2],normals[1][2],normals[2][2]]).mean()
 
     avg_n = np.array([x_mean,y_mean,z_mean])
-    return avg_n
+    return normals[0]
+
+def calculateNormals(tri):
+    # print("tri")
+    # print(tri)
+    v1 = tri[0]
+    v2 = tri[1]
+    v3 = tri[2]
+
+    e1 = v2 - v1
+    e2 = v3 - v1
+
+    e3 = v3 - v2
+    e4 = v1 - v2
+
+    e5 = v1 - v3
+    e6 = v2 - v3
+
+    n1 = np.cross(e1,e2)
+    n2 = np.cross(e3,e4)
+    n3 = np.cross(e5,e6)
+
+    n1 = n1 / np.linalg.norm(n1)
+    n2 = n2 / np.linalg.norm(n2)
+    n3 = n3 / np.linalg.norm(n3)
+
+    return n1,n2,n3
+
+def interpolateNormal(bary_coords,normals):
+    n1,n2,n3 = normals
+    a,b,c = bary_coords
+    
+    interp_normal = n1*a + n2*b +(1-a-b)*n3
+    interp_normal = interp_normal / np.linalg.norm(interp_normal)
+    return np.array([interp_normal])
+
+def readOBJ(filepath):
+    vertices = []
+    normals = []
+    faces = []
+    with open(filepath, 'r') as file:
+        for line in file:
+            if line.startswith('v '):
+                vertex = line.split()[1:]
+                vertex = [float(coord) for coord in vertex]
+                vertices.extend(vertex)
+            elif line.startswith('vn '):
+                normal = line.split()[1:]
+                normal = [float(coord) for coord in normal]
+                normals.extend(normal)
+            elif line.startswith('f '):
+                face = line.split()[1:]
+                face = [int(index.split('/')[0]) - 1 for index in face]
+                faces.extend(face)
+                faces.extend([-1])
+
+        
+    return vertices, faces, normals
 
 
 def generateCircleVertices(center,radius, sectorCount):
