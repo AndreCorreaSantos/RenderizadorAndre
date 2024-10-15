@@ -165,6 +165,7 @@ class GL:
         # print(len(vertices)//3)
 
         tex_index = 0 # Index for texture_values
+        pixel_normal = None
         for i in range(0, len(vertices), 9):
             tri = vertices[i : i + 9]
 
@@ -172,9 +173,11 @@ class GL:
             
                 index = i // 3
                 triw_points = world_points[index:index+3]
-                print("points")
-                print(triw_points   )
-                triw_normals = helper.calculateNormals(triw_points)
+                # print("points")
+                n = helper.calculateNormals(triw_points)
+                # pixel_normal = np.array([0.0,0.0,n[2]])
+                pixel_normal = n
+
 
 
             if len(tri) != 9:
@@ -224,7 +227,7 @@ class GL:
             w2 = 1.0 / z2 if z2 != 0 else 0.0
             w3 = 1.0 / z3 if z3 != 0 else 0.0
             
-            pixel_normal = None
+
             
             # Iterating over the bounding box
             for x in range(super_box[0], super_box[1] + 1):
@@ -243,13 +246,6 @@ class GL:
 
                         # Interpolate z-value
                         z = alpha * z1 + beta * z2 + gamma * z3
-
-                        if GL.normal:
-                            normal = helper.averageTriNormals(triw_normals)
-                            pixel_normal = normal
-                            # pixel_normal = helper.interpolateNormal(bary_coords,triw_normals)
-                            # pixel_normal = helper.averageTriNormals(triw_normals)
-                            # print(pixel_normal)
 
                         if transparency == 0:
                             # Opaque pixel
@@ -306,7 +302,10 @@ class GL:
 
 
                         elif pixel_normal is not None:
-                            color = pixel_normal*255
+                            # pr
+                            #
+                            normal_color = (pixel_normal+1) * 127.5
+                            color = normal_color
                         
 
 

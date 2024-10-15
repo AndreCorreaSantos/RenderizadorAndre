@@ -53,30 +53,22 @@ def averageTriNormals(normals):
     return normals[0]
 
 def calculateNormals(tri):
-    # print("tri")
-    # print(tri)
+    # Extract the vertices
     v1 = tri[0]
     v2 = tri[1]
     v3 = tri[2]
 
+    # Calculate two edges
     e1 = v2 - v1
     e2 = v3 - v1
 
-    e3 = v3 - v2
-    e4 = v1 - v2
+    # Calculate the normal using the cross product of the edges
+    normal = np.cross(e1, e2)
 
-    e5 = v1 - v3
-    e6 = v2 - v3
+    # Normalize the normal
+    normal = normal / np.linalg.norm(normal)
 
-    n1 = np.cross(e1,e2)
-    n2 = np.cross(e3,e4)
-    n3 = np.cross(e5,e6)
-
-    n1 = n1 / np.linalg.norm(n1)
-    n2 = n2 / np.linalg.norm(n2)
-    n3 = n3 / np.linalg.norm(n3)
-
-    return n1,n2,n3
+    return normal
 
 def interpolateNormal(bary_coords,normals):
     n1,n2,n3 = normals
