@@ -101,6 +101,70 @@ def readOBJ(filepath):
         
     return vertices, faces, normals
 
+def interpolateNormals(normals, alpha, beta, gamma):
+    n0 = normals[0]
+    n1 = normals[1]
+    n2 = normals[2]
+    n = alpha * n0 + beta * n1 + gamma * n2
+    return n
+
+
+
+def generateNormals(vertices,indices):
+    def generateNormal(face_vertices):
+        v0 = np.array(face_vertices[0])
+        v1 = np.array(face_vertices[1])
+        v2 = np.array(face_vertices[2])
+        n = np.cross(v1-v0,v2-v0)
+
+        return n/np.linalg.norm(n)
+
+    vertices = [vertices[i:i+3] for i in range(0,len(vertices),3)]
+    num_vertices = len(vertices)
+
+    faces = []
+    face = []
+    vertex_faces = {}
+    face_count = 0
+    for ind in indices:
+        if ind != -1 and ind not in vertex_faces:
+            vertex_faces[ind] = []
+            
+        if ind == -1:
+            faces.append(face)
+
+            vertex_faces[face[0]].append(face_count)
+            vertex_faces[face[1]].append(face_count)
+            vertex_faces[face[2]].append(face_count)
+            face = []
+            face_count += 1
+            
+            continue
+        face.append(ind)
+
+    
+    
+    vertex_normals = [np.array([0.0, 0.0, 0.0]) for _ in range(num_vertices)]
+
+    # Calculate normals
+    for vertex_id, face_ids in vertex_faces.items():
+        face_normals = []
+        for face_id in face_ids:
+            face_vertices = [vertices[i] for i in faces[face_id]]
+            face_normals.append(generateNormal(face_vertices))
+
+        mean_normal = np.sum(face_normals, axis=0)
+        norm = np.linalg.norm(mean_normal)
+        if norm != 0:
+            mean_normal /= norm
+        vertex_normals[vertex_id] = mean_normal
+
+    vertex_normals_flat = []
+    for normal in vertex_normals:
+        vertex_normals_flat.extend(normal.tolist())
+
+    return vertex_normals_flat
+
 
 def generateCircleVertices(center,radius, sectorCount):
     vertices = []

@@ -133,7 +133,7 @@ class GL:
     # interpolar a normal, nao sei como --> por enquanto pegar a média
     # 
     @staticmethod
-    def triangleSet2D(vertices, colors, vertex_colors=None, texture_values=None,world_points=None):
+    def triangleSet2D(vertices, colors, vertex_colors=None, texture_values=None,world_values=None):
         """Function used to render TriangleSet2D with depth testing, barycentric interpolation, and texture mapping."""
 
         
@@ -301,11 +301,10 @@ class GL:
                             color = mipmap[v][u][0:3]
 
 
-                        elif pixel_normal is not None:
-                            # pr
-                            #
-                            normal_color = (pixel_normal+1) * 127.5
-                            color = normal_color
+                        elif world_values is not None:
+                            pixel_normal = helper.interpolateNormals(triw_normals, alpha, beta, gamma)
+
+                            color = (pixel_normal+1)*127.5
                         
 
 
@@ -570,6 +569,8 @@ class GL:
         vertices = []
         indexed_vertex_colors = []
         indexed_vertex_tex_coord = []
+        indexed_normals = []
+        
         
         
         i = 0
@@ -658,7 +659,13 @@ class GL:
         texFaces = splitFaces(texCoordIndex)
         texStripIndices = generateStrips(texFaces)
 
-        GL.indexedTriangleStripSet(coord, stripIndices, colors,vertex_colors, colorIndex,texCoord,texStripIndices)
+        if normals is not None:
+            # generating normal coordinates per vertex based on each face
+            normals = helper.generateNormals(coord,stripIndices)
+
+        
+
+        GL.indexedTriangleStripSet(coord, stripIndices, colors,vertex_colors, colorIndex,texCoord,texStripIndices,normals)
 
 
 
@@ -708,9 +715,10 @@ class GL:
         for vertex in scaled_vertices:
             out_vertices.extend(vertex)
 
-        GL.normal = True
+        normals = helper.generateNormals(out_vertices,indices)
+
         
-        GL.indexedFaceSet(out_vertices, indices, False, [], [], [], [], colors, [])
+        GL.indexedFaceSet(out_vertices, indices, False, [], [], [], [], colors, [],normals=normals)
 
         
 
@@ -766,8 +774,10 @@ class GL:
 
         for i in range(1, len(vertices)//3 - 1):
             indices.extend([0,i,i+1,-1])
+
+        normals = helper.generateNormals(vertices,indices)
         
-        GL.indexedFaceSet(vertices, indices, False, [], [], [], [], colors, [])
+        GL.indexedFaceSet(vertices, indices, False, [], [], [], [], colors, [], normals=normals)
 
     @staticmethod
     def cylinder(radius, height, colors):
@@ -803,7 +813,9 @@ class GL:
             next_i = (i + 1) % sectorCount
             faces.extend([sectorCount + next_i, sectorCount + i, topCenterIndex, -1])
 
-        GL.indexedFaceSet(vertices, faces, False, [], [], [], [], colors, [])
+        normals = helper.generateNormals(vertices, faces)
+
+        GL.indexedFaceSet(vertices, faces, False, [], [], [], [], colors, [], normals=normals)
 
 
 
