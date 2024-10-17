@@ -167,27 +167,35 @@ def get_mipmaps(texture): # returns a list of downsampled images to be used as m
         condition = height > 1 and width > 1
     return mipmap_levels
 
-def applyLighting(color, normal, light):
-    diffuse_c = color['diffuseColor']
-    specular_c = color['specularColor']
+
+def applyLighting(color, normal, light, view_dir):
+    diffuse_c = np.array(color['diffuseColor'])
+    specular_c = np.array(color['specularColor'])
     shininess_c = color['shininess']
     
-    ambient_intensity = np.array(light['ambientIntensity'])
+    ambient_intensity = light['ambientIntensity']
     light_color = np.array(light['color'])
-    light_direction = np.array(light['direction'])
-    light_intensity = np.array(light['intensity'])
+    light_direction = -np.array(light['direction'])
+    light_intensity = light['intensity']
 
-    inv_light_dir = -light_direction
+    normal = normal / np.linalg.norm(normal)
+    light_direction = light_direction / np.linalg.norm(light_direction)
+    view_dir = view_dir / np.linalg.norm(view_dir)
 
-    ambient_i = ambient_intensity * diffuse_c * 1.0
-    diffuse_i = light_intensity*diffuse_c*(np.cross(normal,inv_light_dir))
+    ambient = ambient_intensity * diffuse_c
 
-    light_v = inv_light_dir+normal/np.linalg.norm(inv_light_dir+normal)
-    specular_coef = (light_direction)**(shininess_c*128)
-    specular_i = light_intensity*specular_c
-    
-    sum_term = light_color*(ambient_i+diffuse_i+specular_i)
+    max_dot = max(np.dot(normal, light_direction), 0.0)
+    diffuse = light_intensity * diffuse_c * max_dot
 
-    return sum_term
+
+    half_vector = (light_direction + view_dir)
+    half_vector /= np.linalg.norm(half_vector)
+    spec_angle = max(np.dot(normal, half_vector), 0.0)
+    specular = light_intensity * specular_c * (spec_angle ** (shininess_c * 128))
+
+
+    color_result = light_color * (ambient + diffuse+specular)
+
+    return color_result
 
 

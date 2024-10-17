@@ -31,6 +31,7 @@ class GL:
     colorPerVertex = False
     directionalLights = []
     viewDirection = []
+    position = np.array([0,0,0])
     
 
     width = 800  # largura da tela
@@ -227,6 +228,7 @@ class GL:
             w2 = 1.0 / z2 if z2 != 0 else 0.0
             w3 = 1.0 / z3 if z3 != 0 else 0.0
             pixel_normal = None
+        
             # Iterating over the bounding box
             for x in range(super_box[0], super_box[1] + 1):
                 for y in range(super_box[2], super_box[3] + 1):
@@ -301,6 +303,7 @@ class GL:
 
                         elif world_values is not None:
                             pixel_normal = helper.interpolateNormals(triw_normals, alpha, beta, gamma)
+                            pixel_position = helper.interpolateNormals(triw_points, alpha, beta, gamma)
                         
 
 
@@ -318,14 +321,20 @@ class GL:
                             # color = np.array([255,255,255])
 
                         if pixel_normal is not None and len(GL.directionalLights) > 0:
-                            # color = (pixel_normal + 1) *127.5
+                           
+                            
                             final_color = colors["emissiveColor"]
-
+                            v = (GL.position - pixel_position)/np.linalg.norm(GL.position - pixel_position)
+                            # print(len(GL.directionalLights))
                             for light in GL.directionalLights:
+                                final_color += helper.applyLighting(original_color, pixel_normal, light,v)
 
-                                final_color += helper.applyLighting(original_color, pixel_normal, light)
-
-                            color = final_color 
+                            # color = final_color*255
+                            color = (pixel_normal + 1) *127.5
+                            # if final_color[0] > 1 or final_color[1] > 1 or final_color[2] > 1:
+                            #     print("ERROR")
+                            
+                            # color = np.clip(final_color*255,0,255).astype(np.uint8)
 
                             # print(GL.directionalLights)
                         # Handle transparency blending
@@ -460,6 +469,7 @@ class GL:
         #LÓGICA TRANSLAÇÕES E ROTAÇÕES LOOK AT
 
         # Consertar 
+        GL.position = np.array(position)
         GL.viewDirection =  orientation
         cam_pos = np.matrix([
             [1.0,0.0,0.0,position[0]],
@@ -882,8 +892,9 @@ class GL:
             "NavigationInfo : headlight = {0}".format(headlight)
         )  # imprime no terminal
 
-        dlight =
-        GL.directionalLights.append(dlight)
+        # dlight =
+        if headlight:
+            GL.directionalLight(0.0, [1, 1, 1], 1.0, [0, 0, -1])
 
     @staticmethod
     def directionalLight(ambientIntensity, color, intensity, direction):
