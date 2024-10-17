@@ -330,11 +330,11 @@ class GL:
                                 final_color += helper.applyLighting(original_color, pixel_normal, light,v)
 
                             # color = final_color*255
-                            color = (pixel_normal + 1) *127.5
+                            # color = (pixel_normal + 1) *127.5
                             # if final_color[0] > 1 or final_color[1] > 1 or final_color[2] > 1:
                             #     print("ERROR")
                             
-                            # color = np.clip(final_color*255,0,255).astype(np.uint8)
+                            color = np.clip(final_color*255,0,255).astype(np.uint8)
 
                             # print(GL.directionalLights)
                         # Handle transparency blending
