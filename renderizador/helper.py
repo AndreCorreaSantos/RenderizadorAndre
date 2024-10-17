@@ -58,16 +58,16 @@ def interpolateNormals(normals, alpha, beta, gamma):
     n = alpha * n0 + beta * n1 + gamma * n2
     return n
 
+def generateNormal(tri_vertices):
+    v0 = np.array(tri_vertices[0])
+    v1 = np.array(tri_vertices[1])
+    v2 = np.array(tri_vertices[2])
+    n = np.cross(v1-v0,v2-v0)
 
+    return n/np.linalg.norm(n)
 
-def generateNormals(vertices,indices):
-    def generateNormal(face_vertices):
-        v0 = np.array(face_vertices[0])
-        v1 = np.array(face_vertices[1])
-        v2 = np.array(face_vertices[2])
-        n = np.cross(v1-v0,v2-v0)
+def generateNormals(vertices,indices,flat=False):
 
-        return n/np.linalg.norm(n)
 
     vertices = [vertices[i:i+3] for i in range(0,len(vertices),3)]
     num_vertices = len(vertices)
@@ -199,8 +199,6 @@ def applyLighting(color, normal, light, view_dir):
 
     color_result = light_color * (ambient + diffuse+specular)
 
-    if ok:
-        print(color["emissiveColor"])
 
     return color_result
 

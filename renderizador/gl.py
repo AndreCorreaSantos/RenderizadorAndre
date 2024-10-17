@@ -32,6 +32,7 @@ class GL:
     directionalLights = []
     viewDirection = []
     position = np.array([0,0,0])
+    flat = False
     
 
     width = 800  # largura da tela
@@ -155,7 +156,7 @@ class GL:
                 return
 
         original_color = colors
-
+        color = np.array(colors["emissiveColor"]) * 255
         if GL.colorPerVertex:
             vertex_colors = np.array(vertex_colors) * 255
         else:
@@ -165,7 +166,7 @@ class GL:
 
         transparency = colors.get("transparency", 0.0)
 
-
+    
 
         tex_index = 0 # Index for texture_values
         for i in range(0, len(vertices), 9):
@@ -308,6 +309,7 @@ class GL:
 
 
                         elif GL.colorPerVertex:
+                            
                             # Interpolate color components with perspective correction
                             r = (alpha * c1[0] * w1 + beta * c2[0] * w2 + gamma * c3[0] * w3) / one_over_z
                             g = (alpha * c1[1] * w1 + beta * c2[1] * w2 + gamma * c3[1] * w3) / one_over_z
@@ -321,7 +323,6 @@ class GL:
 
                         if pixel_normal is not None and len(GL.directionalLights) > 0:
                            
-                            
                             final_color = colors["emissiveColor"]
                             v = (GL.position - pixel_position)/np.linalg.norm(GL.position - pixel_position)
                             # print(len(GL.directionalLights))
@@ -365,6 +366,7 @@ class GL:
     @staticmethod
     def triangleSet(point, colors,vertex_colors=None,texture_values=None,normals=None):
         """Função usada para renderizar TriangleSet."""
+
         
         # Helper function to multiply matrices
         def multiply_mats(mat_list):
@@ -434,7 +436,7 @@ class GL:
                 # normal in world space
                 n_to_world = multiply_mats(GL.normal_transform_stack)
                 n = ns[i]
-                n.append(0.0)
+                n.append(1.0)
                 world_n = np.array(n)
                 world_n = n_to_world @ world_n
 
@@ -446,14 +448,38 @@ class GL:
                 world_points.append(world_p)
                 world_normals.append(world_n)
 
-            
+
+
+
             world_values = [world_points,world_normals]
+
+        elif len(GL.directionalLights) > 0:
+            # calculate flat normals here!
+            normals = []
+            points = []
+            for i in range(0, len(xs), 3):
+                tri_vertices = [[xs[i], ys[i], zs[i]], [xs[i + 1], ys[i + 1], zs[i + 1]], [xs[i + 2], ys[i + 2], zs[i + 2]]]
+
+                n = np.array(helper.generateNormal(tri_vertices))
+                normals.extend([n,n,n])
+
+                points.extend(np.array(tri_vertices))
+            
+            world_values = [points,normals]
+
+        print("Values")
+        print("points")
+        print(len(world_values[0]))
+        print("normals")    
+        print(len(world_values[1]))
 
 
        
         projected_vertices = transform_points(point, min(xs), min(ys), min(zs), max(zs))
 
         # Call triangleSet2D with the transformed 2D vertices
+
+        
 
         GL.triangleSet2D(projected_vertices, colors,vertex_colors,texture_values=texture_values,world_values=world_values)
 
@@ -584,6 +610,9 @@ class GL:
         # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO. # Referência à variável global
         if len(GL.transform_stack)>0:
             GL.transform_stack.pop()  # Modificação da lista global
+
+        if len(GL.normal_transform_stack)>0:
+            GL.normal_transform_stack.pop()
 
 
     @staticmethod
@@ -718,10 +747,11 @@ class GL:
 
         texFaces = splitFaces(texCoordIndex)
         texStripIndices = generateStrips(texFaces)
-
+     
         if normals is not None:
+         
             # generating normal coordinates per vertex based on each face
-            normals = helper.generateNormals(coord,stripIndices)
+            normals = helper.generateNormals(coord,stripIndices,GL.flat)
 
         
 
@@ -766,19 +796,16 @@ class GL:
 
         size = [size[0] / 2, size[1] / 2, size[2] / 2]
         scaled_vertices = [[v[0] * size[0], v[1] * size[1], v[2] * size[2]] for v in vertices]
-        indices = []
-        for face in faces:
-            indices.extend(face)
-            indices.extend([-1])
+    
 
         out_vertices = []
         for vertex in scaled_vertices:
             out_vertices.extend(vertex)
 
-        normals = helper.generateNormals(out_vertices,indices)
+        GL.indexedFaceSet(out_vertices, faces, False, [], [], [], [], colors, [])
+
+ 
         
-        
-        GL.indexedFaceSet(out_vertices, indices, False, [], [], [], [], colors, [],normals=normals)
 
         
 
@@ -895,6 +922,7 @@ class GL:
 
         # dlight =
         if headlight:
+            GL.headlight = True
             GL.directionalLight(0.0, [1, 1, 1], 1.0, [0, 0, -1])
 
     @staticmethod
