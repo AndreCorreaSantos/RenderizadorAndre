@@ -167,4 +167,27 @@ def get_mipmaps(texture): # returns a list of downsampled images to be used as m
         condition = height > 1 and width > 1
     return mipmap_levels
 
+def applyLighting(color, normal, light):
+    diffuse_c = color['diffuseColor']
+    specular_c = color['specularColor']
+    shininess_c = color['shininess']
+    
+    ambient_intensity = np.array(light['ambientIntensity'])
+    light_color = np.array(light['color'])
+    light_direction = np.array(light['direction'])
+    light_intensity = np.array(light['intensity'])
+
+    inv_light_dir = -light_direction
+
+    ambient_i = ambient_intensity * diffuse_c * 1.0
+    diffuse_i = light_intensity*diffuse_c*(np.cross(normal,inv_light_dir))
+
+    light_v = inv_light_dir+normal/np.linalg.norm(inv_light_dir+normal)
+    specular_coef = (light_direction)**(shininess_c*128)
+    specular_i = light_intensity*specular_c
+    
+    sum_term = light_color*(ambient_i+diffuse_i+specular_i)
+
+    return sum_term
+
 
