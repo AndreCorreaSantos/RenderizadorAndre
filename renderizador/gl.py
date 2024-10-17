@@ -847,7 +847,7 @@ class GL:
             "NavigationInfo : headlight = {0}".format(headlight)
         )  # imprime no terminal
 
-        dlight =
+        # dlight =
         GL.directionalLights.append(dlight)
 
     @staticmethod
