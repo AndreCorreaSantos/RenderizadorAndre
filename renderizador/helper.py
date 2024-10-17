@@ -42,6 +42,7 @@ def generateSphereNormals(center,vertices): # can also be used for spheres
         normals.extend(n)
     return normals
 
+
 def averageTriNormals(normals):
 
     x_mean = np.array([normals[0][0],normals[1][0],normals[2][0]]).mean()
@@ -49,7 +50,56 @@ def averageTriNormals(normals):
     z_mean = np.array([normals[0][2],normals[1][2],normals[2][2]]).mean()
 
     avg_n = np.array([x_mean,y_mean,z_mean])
-    return avg_n
+    return normals[0]
+
+def calculateNormals(tri):
+    # Extract the vertices
+    v1 = tri[0]
+    v2 = tri[1]
+    v3 = tri[2]
+
+    # Calculate two edges
+    e1 = v2 - v1
+    e2 = v3 - v1
+
+    # Calculate the normal using the cross product of the edges
+    normal = np.cross(e1, e2)
+
+    # Normalize the normal
+    normal = normal / np.linalg.norm(normal)
+
+    return normal
+
+def interpolateNormal(bary_coords,normals):
+    n1,n2,n3 = normals
+    a,b,c = bary_coords
+    
+    interp_normal = n1*a + n2*b +(1-a-b)*n3
+    interp_normal = interp_normal / np.linalg.norm(interp_normal)
+    return np.array([interp_normal])
+
+def readOBJ(filepath):
+    vertices = []
+    normals = []
+    faces = []
+    with open(filepath, 'r') as file:
+        for line in file:
+            if line.startswith('v '):
+                vertex = line.split()[1:]
+                vertex = [float(coord) for coord in vertex]
+                vertices.extend(vertex)
+            elif line.startswith('vn '):
+                normal = line.split()[1:]
+                normal = [float(coord) for coord in normal]
+                normals.extend(normal)
+            elif line.startswith('f '):
+                face = line.split()[1:]
+                face = [int(index.split('/')[0]) - 1 for index in face]
+                faces.extend(face)
+                faces.extend([-1])
+
+        
+    return vertices, faces, normals
 
 def interpolateNormals(normals, alpha, beta, gamma):
     n0 = normals[0]
