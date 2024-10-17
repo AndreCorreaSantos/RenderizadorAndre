@@ -453,18 +453,28 @@ class GL:
 
             world_values = [world_points,world_normals]
 
-        elif len(GL.directionalLights) > 0:
+        elif len(GL.directionalLights) > 0: #  # ACHO QUE ESTOU PROJETANDO ERRADO PARA ESPACO DO MUNDO
             # calculate flat normals here!
             normals = []
             points = []
+            obj_to_world = multiply_mats(GL.transform_stack)
             for i in range(0, len(xs), 3):
-                tri_vertices = [[xs[i], ys[i], zs[i]], [xs[i + 1], ys[i + 1], zs[i + 1]], [xs[i + 2], ys[i + 2], zs[i + 2]]]
+       
+                tri_vertices = []
+                # tri_vertices = [[xs[i],ys[i],zs[i]],[xs[i+1],ys[i+1],zs[i+1]],[xs[i+2],ys[i+2],zs[i+2]]]
+
+                for j in range(0,3):
+                    print(j)
+                    vertex = [xs[i+j],ys[i+j],zs[i+j],1.0]
+                    world_vertex = obj_to_world @ vertex
+                    tri_vertices.append(np.array(list(np.array(world_vertex).flatten())[0:3]))
+                    
 
                 n = np.array(helper.generateNormal(tri_vertices))
                 normals.extend([n,n,n])
 
                 points.extend(np.array(tri_vertices))
-            
+            print("A")
             world_values = [points,normals]
 
         print("Values")
@@ -802,7 +812,14 @@ class GL:
         for vertex in scaled_vertices:
             out_vertices.extend(vertex)
 
-        GL.indexedFaceSet(out_vertices, faces, False, [], [], [], [], colors, [])
+        indices = []
+
+        for face in faces:
+            indices.extend(face)
+            indices.append(-1)
+
+
+        GL.indexedFaceSet(out_vertices, indices, False, [], [], [], [], colors, [])
 
  
         
