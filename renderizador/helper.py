@@ -62,7 +62,7 @@ def generateNormal(tri_vertices):
     v0 = np.array(tri_vertices[0])
     v1 = np.array(tri_vertices[1])
     v2 = np.array(tri_vertices[2])
-    n = np.cross(v1-v0,v2-v0)
+    n = np.cross(v0-v1,v0-v2)
 
     return n/np.linalg.norm(n)
 

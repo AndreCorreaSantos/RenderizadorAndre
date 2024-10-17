@@ -329,6 +329,7 @@ class GL:
                             # print(len(GL.directionalLights))
                             
                             for light in GL.directionalLights:
+
                                 final_color += helper.applyLighting(original_color, pixel_normal, light,v)
 
                             # color = final_color*255
@@ -813,7 +814,15 @@ class GL:
             indices.extend(face)
             indices.append(-1)
             
-        GL.invertNormals = True
+
+
+        rotation_matrix_y = np.array([
+            [np.cos(np.pi/2), 0, np.sin(np.pi/2)],
+            [0, 1, 0],
+            [-np.sin(np.pi/2), 0, np.cos(np.pi/2)]
+        ])
+        for light in GL.directionalLights:
+            light['direction'] = (rotation_matrix_y @ np.array(light['direction'])).astype(np.int64)
 
         GL.indexedFaceSet(out_vertices, indices, False, [], [], [], [], colors, [])
 
