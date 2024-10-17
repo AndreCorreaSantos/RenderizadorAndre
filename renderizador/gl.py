@@ -33,6 +33,7 @@ class GL:
     viewDirection = []
     position = np.array([0,0,0])
     flat = False
+    invertNormals = False
     
 
     width = 800  # largura da tela
@@ -331,7 +332,7 @@ class GL:
                                 final_color += helper.applyLighting(original_color, pixel_normal, light,v)
 
                             # color = final_color*255
-                            # color = (pixel_normal + 1) *127.5
+                            # color = (pixel_normal + 1)*127.5
                             # if final_color[0] > 1 or final_color[1] > 1 or final_color[2] > 1:
                             #     print("ERROR")
                             
@@ -449,7 +450,8 @@ class GL:
                 world_normals.append(world_n)
 
 
-
+            # if GL.invertNormals:
+            #     normals = [-n for n in normals]
 
             world_values = [world_points,world_normals]
 
@@ -463,7 +465,6 @@ class GL:
                 tri_vertices = []
 
                 for j in range(0,3):
-                    print(j)
                     vertex = [xs[i+j],ys[i+j],zs[i+j],1.0]
                     world_vertex = obj_to_world @ vertex
                     tri_vertices.append(np.array(list(np.array(world_vertex).flatten())[0:3]))
@@ -474,8 +475,9 @@ class GL:
 
                 points.extend(np.array(tri_vertices))
 
+            # if GL.invertNormals:
+            #     normals = [-n for n in normals]
             world_values = [points,normals]
-
 
        
         projected_vertices = transform_points(point, min(xs), min(ys), min(zs), max(zs))
@@ -810,7 +812,8 @@ class GL:
         for face in faces:
             indices.extend(face)
             indices.append(-1)
-
+            
+        GL.invertNormals = True
 
         GL.indexedFaceSet(out_vertices, indices, False, [], [], [], [], colors, [])
 
