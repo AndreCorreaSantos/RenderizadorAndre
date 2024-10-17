@@ -461,7 +461,6 @@ class GL:
             for i in range(0, len(xs), 3):
        
                 tri_vertices = []
-                # tri_vertices = [[xs[i],ys[i],zs[i]],[xs[i+1],ys[i+1],zs[i+1]],[xs[i+2],ys[i+2],zs[i+2]]]
 
                 for j in range(0,3):
                     print(j)
@@ -474,14 +473,8 @@ class GL:
                 normals.extend([n,n,n])
 
                 points.extend(np.array(tri_vertices))
-            print("A")
-            world_values = [points,normals]
 
-        print("Values")
-        print("points")
-        print(len(world_values[0]))
-        print("normals")    
-        print(len(world_values[1]))
+            world_values = [points,normals]
 
 
        
