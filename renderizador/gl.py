@@ -138,7 +138,6 @@ class GL:
     def triangleSet2D(vertices, colors, vertex_colors=None, texture_values=None,world_values=None):
         """Function used to render TriangleSet2D with depth testing, barycentric interpolation, and texture mapping."""
 
-        
         if texture_values is not None and GL.image is not None:
             mipmaps = helper.get_mipmaps(GL.image)
     
@@ -190,12 +189,12 @@ class GL:
 
             # Bounding Box
             box = [int(min(xs)), int(max(xs)), int(min(ys)), int(max(ys))]
-
+            super_factor = 1
             # Scale only x and y for super sampling
-            super_box = [2 * v for v in box]
+            super_box = [super_factor* v for v in box]
             super_tri = []
             for j in range(0, len(tri), 3):
-                super_tri.extend([2 * tri[j], 2 * tri[j + 1], tri[j + 2]])  # Scale x and y, keep z
+                super_tri.extend([super_factor* tri[j], super_factor* tri[j + 1], tri[j + 2]])  # Scale x and y, keep z
 
             if GL.colorPerVertex:
                 # Extract per-triangle colors
@@ -326,6 +325,7 @@ class GL:
                             final_color = colors["emissiveColor"]
                             v = (GL.position - pixel_position)/np.linalg.norm(GL.position - pixel_position)
                             # print(len(GL.directionalLights))
+                            
                             for light in GL.directionalLights:
                                 final_color += helper.applyLighting(original_color, pixel_normal, light,v)
 
@@ -355,10 +355,11 @@ class GL:
             for x in range(box[0], box[1] + 1):
                 for y in range(box[2], box[3] + 1):
                     if (0 <= x < GL.width) and (0 <= y < GL.height):
-                        c1 = GL.super_buffer[2 * x][2 * y]
-                        c2 = GL.super_buffer[2 * x][2 * y + 1]
-                        c3 = GL.super_buffer[2 * x + 1][2 * y]
-                        c4 = GL.super_buffer[2 * x + 1][2 * y + 1]
+                        
+                        c1 = GL.super_buffer[super_factor * x][super_factor * y]
+                        c2 = GL.super_buffer[super_factor * x][super_factor * y + 1]
+                        c3 = GL.super_buffer[super_factor * x + 1][super_factor * y]
+                        c4 = GL.super_buffer[super_factor * x + 1][super_factor * y + 1]
                         super_colors = np.array([c1, c2, c3, c4]).mean(axis=0).astype(np.uint8)
                         gpu.GPU.draw_pixel([x, y], gpu.GPU.RGB8, super_colors)
     @staticmethod
@@ -433,9 +434,9 @@ class GL:
                 # normal in world space
                 n_to_world = multiply_mats(GL.normal_transform_stack)
                 n = ns[i]
-                n.append(1.0)
+                n.append(0.0)
                 world_n = np.array(n)
-                # world_n = obj_to_world @ np.array(n)
+                world_n = n_to_world @ world_n
 
 
                 # throwing away homogenous coordinates
@@ -791,8 +792,8 @@ class GL:
         # precisar tesselar ela em triângulos, para isso encontre os vértices e defina
         # os triângulos.
         # Número de divisões de latitude e longitude
-        sectorCount = 36
-        stackCount = 18
+        sectorCount = 64
+        stackCount = 32
         points = helper.generateSphereVertices(radius, sectorCount, stackCount)
         coordIndex = helper.generateMeshIndices(sectorCount, stackCount)
         center = np.array([0.0,0.0,0.0])

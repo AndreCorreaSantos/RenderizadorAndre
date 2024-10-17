@@ -169,10 +169,13 @@ def get_mipmaps(texture): # returns a list of downsampled images to be used as m
 
 
 def applyLighting(color, normal, light, view_dir):
+
     diffuse_c = np.array(color['diffuseColor'])
     specular_c = np.array(color['specularColor'])
     shininess_c = color['shininess']
-    
+    ok = False
+    if np.linalg.norm(diffuse_c) == 0:
+        ok = True
     ambient_intensity = light['ambientIntensity']
     light_color = np.array(light['color'])
     light_direction = -np.array(light['direction'])
@@ -195,6 +198,9 @@ def applyLighting(color, normal, light, view_dir):
 
 
     color_result = light_color * (ambient + diffuse+specular)
+
+    if ok:
+        print(color["emissiveColor"])
 
     return color_result
 
