@@ -1044,6 +1044,54 @@ class GL:
         # na primeira e na última chave não forem idênticos, o campo closed será ignorado.
 
         # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
+
+        def interpolatePosition(h0,h1,h2,h3,t): # h0 = p0, h1 = p1, h2 = p'0, h3 = p'1
+            h0t = 2*t**3 - 3*t**2 + 1
+            h1t = -2*t**3 + 3*t**2
+            h2t = t**3 - 2*t**2 + t
+            h3t = t**3 - t**2
+
+            return h0*h0t + h1*h1t + h2*h2t + h3*h3t
+        
+        def getTangent(p0,p1):
+            return (p1-p0)/2
+        
+
+        xs = [keyValue[i] for i in range(0, len(keyValue), 3)]
+        ys = [keyValue[i] for i in range(1, len(keyValue), 3)]
+        zs = [keyValue[i] for i in range(2, len(keyValue), 3)]
+
+        t = set_fraction*(len(xs)-1)
+
+        int_t = int(t)
+        fract_t = t % 1
+
+        h0 = [xs[int_t],ys[int_t],zs[int_t]]
+        h1 = [xs[int_t+1],ys[int_t+1],zs[int_t+1]]
+
+        h2 = [0,0,0]
+        h3 = [0,0,0]
+
+        if int_t > 0 and len(xs)-1 > int_t+1:
+            h2x = getTangent(xs[int_t-1],xs[int_t+1])
+            h2y = getTangent(ys[int_t-1],ys[int_t+1])
+            h2z = getTangent(zs[int_t-1],zs[int_t+1])
+            h2 = [h2x,h2y,h2z]
+        
+        if int_t+2 < len(xs):
+            h3x = getTangent(xs[int_t],xs[int_t+2])
+            h3y = getTangent(ys[int_t],ys[int_t+2])
+            h3z = getTangent(zs[int_t],zs[int_t+2])
+            h3 = [h3x,h3y,h3z]
+
+        r_x = interpolatePosition(h0[0],h1[0],h2[0],h3[0],fract_t)
+        r_y = interpolatePosition(h0[1],h1[1],h2[1],h3[1],fract_t)
+        r_z = interpolatePosition(h0[2],h1[2],h2[2],h3[2],fract_t)
+
+        value_changed = [r_x,r_y,r_z]
+
+
+
         print("SplinePositionInterpolator : set_fraction = {0}".format(set_fraction))
         print(
             "SplinePositionInterpolator : key = {0}".format(key)
@@ -1051,8 +1099,6 @@ class GL:
         print("SplinePositionInterpolator : keyValue = {0}".format(keyValue))
         print("SplinePositionInterpolator : closed = {0}".format(closed))
 
-        # Abaixo está só um exemplo de como os dados podem ser calculados e transferidos
-        value_changed = [0.0, 0.0, 0.0]
 
         return value_changed
 
