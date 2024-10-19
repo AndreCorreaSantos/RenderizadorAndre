@@ -1024,10 +1024,14 @@ class GL:
         print("TimeSensor : loop = {0}".format(loop))
 
         # Esse método já está implementado para os alunos como exemplo
+        GL.super_buffer = np.zeros((GL.width*2, GL.height*2, 3), dtype=np.uint8)
+        GL.z_buffer =  - np.inf * np.ones((GL.width*2, GL.height*2)) 
         epoch = (
             time.time()
         )  # time in seconds since the epoch as a floating point number.
         fraction_changed = (epoch % cycleInterval) / cycleInterval
+
+
 
         return fraction_changed
 
