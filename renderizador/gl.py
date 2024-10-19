@@ -967,6 +967,7 @@ class GL:
             "DirectionalLight : direction = {0}".format(direction)
         )  # imprime no terminal
 
+
         GL.directionalLights.append({"ambientIntensity": ambientIntensity, "color": color, "intensity": intensity, "direction": direction})
 
         
@@ -1108,26 +1109,70 @@ class GL:
 
     @staticmethod
     def orientationInterpolator(set_fraction, key, keyValue):
-        """Interpola entre uma lista de valores de rotação especificos."""
-        # https://www.web3d.org/specifications/X3Dv4/ISO-IEC19775-1v4-IS/Part01/components/interpolators.html#OrientationInterpolator
-        # Interpola rotações são absolutas no espaço do objeto e, portanto, não são cumulativas.
-        # Uma orientação representa a posição final de um objeto após a aplicação de uma rotação.
-        # Um OrientationInterpolator interpola entre duas orientações calculando o caminho mais
-        # curto na esfera unitária entre as duas orientações. A interpolação é linear em
-        # comprimento de arco ao longo deste caminho. Os resultados são indefinidos se as duas
-        # orientações forem diagonalmente opostas. O campo keyValue possui uma lista com os
-        # valores a serem interpolados, key possui uma lista respectiva de chaves
-        # dos valores em keyValue, a fração a ser interpolada vem de set_fraction que varia de
-        # zeroa a um. O campo keyValue deve conter exatamente tantas rotações 3D quanto os
-        # quadros-chave no key.
+        rotations = [keyValue[i:i+4] for i in range(0, len(keyValue), 4)]
+        num_keys = len(rotations)
 
-        # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print("OrientationInterpolator : set_fraction = {0}".format(set_fraction))
-        print("OrientationInterpolator : key = {0}".format(key))  # imprime no terminal
-        print("OrientationInterpolator : keyValue = {0}".format(keyValue))
+        t = set_fraction * (num_keys - 1)
+        int_t = int(t)
+        if int_t >= num_keys - 1:
+            int_t = num_keys - 2
+        fract_t = t - int_t
 
-        # Abaixo está só um exemplo de como os dados podem ser calculados e transferidos
-        value_changed = [0, 0, 1, 0]
+        r0 = rotations[int_t]
+        r1 = rotations[int_t + 1]
+
+        def axis_angle_to_quaternion(axis_angle):
+            x, y, z, angle = axis_angle
+            norm = math.sqrt(x*x + y*y + z*z)
+            if norm == 0:
+                return [1, 0, 0, 0]
+            x /= norm
+            y /= norm
+            z /= norm
+            half_angle = angle / 2.0
+            sin_half_angle = math.sin(half_angle)
+            qx = x * sin_half_angle
+            qy = y * sin_half_angle
+            qz = z * sin_half_angle
+            qw = math.cos(half_angle)
+            return [qw, qx, qy, qz]
+
+        def slerp(q0, q1, t):
+            dot = q0[0]*q1[0] + q0[1]*q1[1] + q0[2]*q1[2] + q0[3]*q1[3]
+            if dot < 0.0:
+                q1 = [-q1[0], -q1[1], -q1[2], -q1[3]]
+                dot = -dot
+            if dot > 0.9995:
+                result = [q0[j] + t*(q1[j]-q0[j]) for j in range(4)]
+                length = math.sqrt(sum([comp*comp for comp in result]))
+                return [comp / length for comp in result]
+            
+            theta_0 = math.acos(dot)
+            sin_theta_0 = math.sin(theta_0)
+            theta_t = theta_0 * t
+            sin_theta_t = math.sin(theta_t)
+            s0 = math.cos(theta_t) - dot * sin_theta_t / sin_theta_0
+            s1 = sin_theta_t / sin_theta_0
+            return [s0 * q0[j] + s1 * q1[j] for j in range(4)]
+
+        def quaternion_to_axis_angle(q):
+            qw, qx, qy, qz = q
+            angle = 2 * math.acos(qw)
+            s = math.sqrt(1 - qw*qw)
+            if s < 0.001:
+                x = qx
+                y = qy
+                z = qz
+            else:
+                x = qx / s
+                y = qy / s
+                z = qz / s
+            return [x, y, z, angle]
+
+        q0 = axis_angle_to_quaternion(r0)
+        q1 = axis_angle_to_quaternion(r1)
+        qt = slerp(q0, q1, fract_t)
+        value_changed = quaternion_to_axis_angle(qt)
 
         return value_changed
 
