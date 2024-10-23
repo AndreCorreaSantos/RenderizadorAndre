@@ -843,7 +843,7 @@ class GL:
         # Número de divisões de latitude e longitude
         sectorCount = 64
         stackCount = 32
-        points = helper.generateSphereVertices(radius, sectorCount, stackCount)
+        points = helper.generateSphereVertices(radius*0.9, sectorCount, stackCount)
         coordIndex = helper.generateMeshIndices(sectorCount, stackCount)
         center = np.array([0.0,0.0,0.0])
         normals = helper.generateSphereNormals(center,points)
